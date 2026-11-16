@@ -1,0 +1,8 @@
+{
+  "name": "pact-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {"dev":"next dev","start":"next start","build":"next build","lint":"next lint","typecheck":"tsc --noEmit","test:e2e":"playwright test"},
+  "dependencies": {"next":"16.4.6","react":"19.2.0","react-dom":"19.2.0"},
+  "devDependencies": {"@playwright/test":"^1.57.0","@types/node":"^22","@types/react":"^19","@types/react-dom":"^19","typescript":"^5.7"}
+}

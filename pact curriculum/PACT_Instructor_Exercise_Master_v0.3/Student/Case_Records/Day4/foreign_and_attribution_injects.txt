@@ -1,0 +1,3 @@
+H-FOR-01 | Victim believes unknown offshore host holds account access logs. Provider, state, location and retention unknown.
+H-FOR-02 | Vendor detail has simulated TLP:AMBER and additional originator-sharing caveat; check recipients and request permission before wider release.
+H-ATR-01 | Competing explanations: access-broker handoff; single operator; related but distinct events; event-linkage error or false positive. None yet proven.

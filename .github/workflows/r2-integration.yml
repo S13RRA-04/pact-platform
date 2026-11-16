@@ -1,0 +1,20 @@
+name: R2 staging integration
+on: workflow_dispatch
+jobs:
+  r2-round-trip:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip, cache-dependency-path: backend/pyproject.toml}
+      - working-directory: backend
+        env:
+          PACT_ENV: test
+          PACT_R2_TEST_ENDPOINT_URL: ${{ secrets.PACT_R2_TEST_ENDPOINT_URL }}
+          PACT_R2_TEST_BUCKET: ${{ secrets.PACT_R2_TEST_BUCKET }}
+          PACT_R2_TEST_ACCESS_KEY_ID: ${{ secrets.PACT_R2_TEST_ACCESS_KEY_ID }}
+          PACT_R2_TEST_SECRET_ACCESS_KEY: ${{ secrets.PACT_R2_TEST_SECRET_ACCESS_KEY }}
+        run: |
+          pip install -e ".[dev]"
+          pytest -m r2_integration

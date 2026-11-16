@@ -1,0 +1,13 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+node_modules/
+node_modules.broken-ci-rebuild/
+.data/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+coverage/

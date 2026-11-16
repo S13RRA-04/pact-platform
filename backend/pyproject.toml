@@ -1,0 +1,46 @@
+[project]
+name = "pact-backend"
+version = "0.1.0"
+description = "PACT learning and case simulation platform API (synthetic-data development prototype)"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn>=0.32",
+  "sqlalchemy>=2.0.36",
+  "alembic>=1.14",
+  "psycopg[binary]>=3.2.3",
+  "pydantic>=2.10",
+  "pydantic-settings>=2.6",
+  "itsdangerous>=2.2",
+  "openpyxl>=3.1.5",
+  "boto3>=1.35",
+  "python-multipart>=0.0.20",
+  "defusedxml>=0.7.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "httpx>=0.28", "ruff>=0.8"]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101", "B008", "E501"]  # line length is enforced by `ruff format`
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106"]
+"app/seed/*" = ["S105"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = ["r2_integration: requires isolated staging R2 credentials"]

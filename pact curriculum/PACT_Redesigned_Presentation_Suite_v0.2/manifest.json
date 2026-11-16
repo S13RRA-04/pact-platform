@@ -1,0 +1,145 @@
+[
+  {
+    "id": "OR00",
+    "module": "Program Orientation & Assessment",
+    "slides": 12,
+    "file": "00_PACT_Orientation_and_Assessment.pptx",
+    "objectives": [
+      "C01–C04",
+      "I01–I04",
+      "A01–A04",
+      "J01"
+    ],
+    "duration": "15 min + course-wide references"
+  },
+  {
+    "id": "M01",
+    "module": "Threat Recognition & Case Intake",
+    "slides": 15,
+    "file": "01_Threat_Recognition_and_Case_Intake.pptx",
+    "objectives": [
+      "C01",
+      "I01",
+      "A01"
+    ],
+    "duration": "90 min primer + 90 min lab"
+  },
+  {
+    "id": "M02",
+    "module": "Authorities & Mission Boundaries",
+    "slides": 15,
+    "file": "02_Legal_Authorities_and_Mission_Boundaries.pptx",
+    "objectives": [
+      "C03",
+      "I01",
+      "I02",
+      "A01"
+    ],
+    "duration": "75 min primer + 90 min applied lab"
+  },
+  {
+    "id": "M03",
+    "module": "Tools, Sources & Provenance",
+    "slides": 14,
+    "file": "03_Tools_Sources_and_Provenance.pptx",
+    "objectives": [
+      "C04",
+      "C02",
+      "J01"
+    ],
+    "duration": "45 min shared block"
+  },
+  {
+    "id": "M04",
+    "module": "Digital Evidence & Acquisition Strategy",
+    "slides": 15,
+    "file": "04_Digital_Evidence_and_Acquisition_Strategy.pptx",
+    "objectives": [
+      "C02",
+      "C03",
+      "I02",
+      "A02"
+    ],
+    "duration": "90 min primer + 90 min lab"
+  },
+  {
+    "id": "M05",
+    "module": "Virtual Assets & Information Sharing",
+    "slides": 15,
+    "file": "05_Virtual_Assets_and_Information_Sharing.pptx",
+    "objectives": [
+      "C03",
+      "C04",
+      "I02",
+      "A02"
+    ],
+    "duration": "75 min primer + 90 min lab"
+  },
+  {
+    "id": "M06",
+    "module": "Forensic Literacy & Timelines",
+    "slides": 15,
+    "file": "06_Forensics_Literacy_and_Timeline_Construction.pptx",
+    "objectives": [
+      "C02",
+      "C04",
+      "I03",
+      "A02"
+    ],
+    "duration": "90 min primer + 90 min workshop"
+  },
+  {
+    "id": "M07",
+    "module": "Range Exercise & Integration",
+    "slides": 13,
+    "file": "07_Range_Lab_and_Integration_Brief.pptx",
+    "objectives": [
+      "C02",
+      "C04",
+      "I03",
+      "A02",
+      "J01"
+    ],
+    "duration": "30 min brief + 150 min range + AAR"
+  },
+  {
+    "id": "M08",
+    "module": "International Cooperation & Evidence",
+    "slides": 15,
+    "file": "08_International_Cooperation_and_Evidence.pptx",
+    "objectives": [
+      "C03",
+      "I02",
+      "A02",
+      "J01"
+    ],
+    "duration": "90 min primer + 90 min workshop"
+  },
+  {
+    "id": "M09",
+    "module": "Attribution & Analytic Tradecraft",
+    "slides": 18,
+    "file": "09_Attribution_and_Analytic_Tradecraft.pptx",
+    "objectives": [
+      "C04",
+      "I04",
+      "A03",
+      "A04",
+      "J01"
+    ],
+    "duration": "75 min primer + 90 min workshop"
+  },
+  {
+    "id": "M10",
+    "module": "Capstone & Individual Evaluation",
+    "slides": 15,
+    "file": "10_Capstone_Joint_Brief_and_Individual_Evaluation.pptx",
+    "objectives": [
+      "C01–C04",
+      "I04",
+      "A04",
+      "J01"
+    ],
+    "duration": "Friday: 75 min prep + 60 min panels + 45 min check"
+  }
+]

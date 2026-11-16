@@ -1,0 +1,213 @@
+{
+  "E00": {
+    "deck": "OR00",
+    "day": "Orientation",
+    "minutes": 15,
+    "objectives": [
+      "C01",
+      "C04"
+    ],
+    "instrument": "Formative diagnostic only",
+    "source_ids": [
+      "H-INT-01"
+    ]
+  },
+  "E01": {
+    "deck": "M01",
+    "day": "Monday",
+    "minutes": 90,
+    "objectives": [
+      "C01",
+      "I01",
+      "A01"
+    ],
+    "instrument": "P01",
+    "source_ids": [
+      "H-INT-01",
+      "H-IDP-01",
+      "H-IDP-02",
+      "H-EDR-01",
+      "H-IAM-01",
+      "H-DNS-01",
+      "H-EDR-02"
+    ]
+  },
+  "E02": {
+    "deck": "M02",
+    "day": "Monday",
+    "minutes": 90,
+    "objectives": [
+      "C03",
+      "I02",
+      "A01"
+    ],
+    "instrument": "K01 preparation / P02 feeder",
+    "source_ids": [
+      "H-IDP-01",
+      "H-INT-01",
+      "H-VND-01"
+    ]
+  },
+  "EPROV": {
+    "deck": "M03",
+    "day": "Monday",
+    "minutes": 45,
+    "objectives": [
+      "C04",
+      "C02",
+      "J01"
+    ],
+    "instrument": "Formative C04 / J01 checkpoint",
+    "source_ids": [
+      "H-VND-01",
+      "H-DNS-01",
+      "H-AI-01"
+    ]
+  },
+  "E03": {
+    "deck": "M04",
+    "day": "Tuesday",
+    "minutes": 90,
+    "objectives": [
+      "C02",
+      "C03",
+      "I02",
+      "A02"
+    ],
+    "instrument": "P02",
+    "source_ids": [
+      "H-IDP-01",
+      "H-EDR-01",
+      "H-IAM-01",
+      "H-DNS-01",
+      "H-PXY-01",
+      "H-IR-01",
+      "H-EDR-02"
+    ]
+  },
+  "E04": {
+    "deck": "M05",
+    "day": "Tuesday",
+    "minutes": 90,
+    "objectives": [
+      "C03",
+      "C04",
+      "I02",
+      "A02"
+    ],
+    "instrument": "P02 supplemental / K01",
+    "source_ids": [
+      "H-FIN-01",
+      "H-FIN-02",
+      "H-VND-01",
+      "H-INT-01"
+    ]
+  },
+  "E05": {
+    "deck": "M06",
+    "day": "Wednesday",
+    "minutes": 90,
+    "objectives": [
+      "C02",
+      "C04",
+      "I03",
+      "A02"
+    ],
+    "instrument": "P03",
+    "source_ids": [
+      "H-IDP-01",
+      "H-EDR-01",
+      "H-IAM-01",
+      "H-DNS-01",
+      "H-EDR-02",
+      "H-PXY-01",
+      "H-LAB-02"
+    ]
+  },
+  "E06": {
+    "deck": "M07",
+    "day": "Wednesday",
+    "minutes": 150,
+    "objectives": [
+      "C02",
+      "C04",
+      "I03",
+      "A02",
+      "J01"
+    ],
+    "instrument": "P03 / J01 checkpoint",
+    "source_ids": [
+      "H-LAB-01",
+      "H-LAB-02",
+      "H-LAB-03",
+      "H-EDR-01"
+    ]
+  },
+  "E07": {
+    "deck": "M08",
+    "day": "Thursday",
+    "minutes": 90,
+    "objectives": [
+      "C03",
+      "I02",
+      "A02",
+      "J01"
+    ],
+    "instrument": "P04",
+    "source_ids": [
+      "H-FOR-01",
+      "H-FOR-02",
+      "H-IDP-01",
+      "H-VND-01"
+    ]
+  },
+  "E08": {
+    "deck": "M09",
+    "day": "Thursday",
+    "minutes": 90,
+    "objectives": [
+      "C04",
+      "I04",
+      "A03",
+      "A04"
+    ],
+    "instrument": "P04",
+    "source_ids": [
+      "H-ATR-01",
+      "H-VND-01",
+      "H-IDP-01",
+      "H-EDR-01",
+      "H-FIN-01",
+      "H-IR-01"
+    ]
+  },
+  "P05": {
+    "deck": "M10",
+    "day": "Friday",
+    "minutes": 180,
+    "objectives": [
+      "C01",
+      "C02",
+      "C03",
+      "C04",
+      "I01",
+      "I02",
+      "I03",
+      "I04",
+      "A01",
+      "A02",
+      "A03",
+      "A04",
+      "J01"
+    ],
+    "instrument": "P05 + K02 (sample) / J01",
+    "source_ids": [
+      "H-INT-01",
+      "H-ATR-01",
+      "H-FOR-01",
+      "H-PXY-01",
+      "H-FIN-01",
+      "H-LAB-03"
+    ]
+  }
+}

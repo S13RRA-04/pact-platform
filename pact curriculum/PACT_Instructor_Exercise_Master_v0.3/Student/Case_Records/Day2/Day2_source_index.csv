@@ -1,0 +1,6 @@
+record_id,release,source_type,record_observation,known_limitation
+H-PXY-01,Day2,Proxy/network summary,2026-10-25 04:09:03Z APP-03 outbound transfer counter of 5.2 GB to 203.0.113.45.,Count does not identify contents; sanctioned backup/export not excluded.
+H-PXY-02,Day2,Proxy/network summary,2026-10-25 04:19:27Z APP-03 outbound counter of 0.2 GB to 203.0.113.46.,Destination role and relationship unknown.
+H-IR-01,Day2,Victim IR narrative,Analyst at NRM wrote “data definitely exfiltrated” based on a screenshot of outbound-byte totals.,Opinion not yet corroborated; original screenshot and basis missing.
+H-FIN-01,Day2,Financial lead,Victim says a negotiator demanded 1.25 BTC; payment address partly redacted; no blockchain transaction ID or full original message.,Demand is not payment; no verified wallet control or identity.
+H-FIN-02,Day2,Vendor financial claim,"Vendor describes a “possible exchange-cluster overlap” without a chain, transaction ID, or corroborating service records.",Hypothesis only; do not represent as confirmed financial flow.

@@ -1,0 +1,5 @@
+H-FIN-01 | VICTIM REPORT | reported demand: 1.25 BTC. Only partially redacted address in incident report. Original message, full address, chain and transaction ID not provided. No payment confirmed.
+
+H-FIN-02 | VENDOR ASSERTION | possible exchange-cluster overlap; no traceable transaction details or underlying method in excerpt.
+
+H-IR-01 | VICTIM IR NOTE | analyst wrote “data definitely exfiltrated” based on byte count screenshot. Underlying screenshot and content evidence unavailable.

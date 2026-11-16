@@ -1,0 +1,4 @@
+INSTRUCTOR CONTROLLED TIMED INJECTS — PUBLISH ONE AT A TIME
+H-LAB-01 | DEV-01 powered on with visible session and chat text. Do not interact; capture observations only.
+H-LAB-02 | Log A shows 25 Oct 00:14 local; Log B shows 24 Oct 22:14 UTC. Timezone/offset unknown. Possible but unverified UTC+02 explanation.
+H-LAB-03 | Copied screenshot lacks documented collector, time and checksum. Require provenance questions; do not assert verified integrity.

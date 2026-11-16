@@ -1,0 +1,4 @@
+record_id,release,source_type,record_observation,known_limitation
+H-LAB-01,Day3,Controlled mock scene,DEV-01 shown powered on with an open session and visible chat-window time reference.,Observe and document; no student collection without range authorization.
+H-LAB-02,Day3,Time conflict inject,Log A: 25 Oct 00:14 “local”; Log B: 24 Oct 22:14 UTC. Offset and time-zone unconfirmed.,"May represent same instant if system is UTC+02, but no proof of same event."
+H-LAB-03,Day3,Integrity inject,"A copied screenshot has no recorded collector, acquisition time, or checksum.",Insufficient provenance to assert integrity.

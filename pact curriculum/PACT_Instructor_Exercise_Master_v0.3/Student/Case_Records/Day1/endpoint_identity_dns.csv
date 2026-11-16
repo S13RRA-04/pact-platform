@@ -1,0 +1,5 @@
+record_id,timestamp_raw,time_basis,source_system,host_or_principal,observed_event,gap
+H-EDR-01,2026-10-25T00:03:11Z,UTC,EDR,WS-17,Process behavior anomaly,Full process tree absent
+H-IAM-01,2026-10-25T00:17:22Z,UTC,IAM,svc-nrm,Privileged role assignment change,Initiating principal redacted
+H-DNS-01,2026-10-25T03:41:00Z,UTC,DNS,WS-17,Query node-7.update.example,No session/content shown
+H-EDR-02,2026-10-26T07:12:36Z,UTC,EDR,APP-03,Potential encryption activity alert,Alert not confirmed

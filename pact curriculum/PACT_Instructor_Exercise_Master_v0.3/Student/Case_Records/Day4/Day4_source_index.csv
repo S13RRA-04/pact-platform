@@ -1,0 +1,4 @@
+record_id,release,source_type,record_observation,known_limitation
+H-FOR-01,Day4,Foreign provider lead,Victim believes an offshore hosting service holds account-access logs; provider and jurisdiction unspecified.,Retention period unconfirmed; do not choose process route without facts.
+H-FOR-02,Day4,Originator caveat,Some detail in H-VND-01 subject to originator approval beyond its permitted recipient set.,Check TLP and additional caveat; never assume release authority.
+H-ATR-01,Day4,Attribution summary,"Four leads: vendor cluster claim, documentation IP in IdP log, commodity-like endpoint behavior, and unconfirmed extortion report.",Attribution of a named human or unified campaign remains unsupported.

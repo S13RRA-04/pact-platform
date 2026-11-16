@@ -1,0 +1,3 @@
+record_id,timestamp_raw,time_basis,account,source_ip,outcome,other_field,limitation
+H-IDP-01,2026-10-24T22:14:07Z,UTC,NRM-OPS-4,198.51.100.24,success,MFA indicator present,Identity not established by event
+H-IDP-02,2026-10-24T22:16:40Z,UTC,NRM-OPS-4,198.51.100.24,blocked,policy check triggered,Reason/details partial

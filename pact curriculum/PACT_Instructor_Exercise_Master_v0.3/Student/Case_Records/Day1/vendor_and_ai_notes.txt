@@ -1,0 +1,7 @@
+H-VND-01 | SYNTHETIC VENDOR EXCERPT | simulated TLP:AMBER, additional originator restrictions
+Date: 2026-10-26
+Subject: node-7.update.example
+Claim: high-risk; possible overlap with fictional BRKR_AL cluster. Method: partially withheld. This is a reported lead, not an established attribution.
+
+H-AI-01 | UNVERIFIED GENERATED SUMMARY
+"BRKR_AL probably stole 5.2 GB". No independent citations, not supported by the raw source file. Validate before use.

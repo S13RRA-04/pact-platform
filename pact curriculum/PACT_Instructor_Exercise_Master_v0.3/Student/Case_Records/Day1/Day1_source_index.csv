@@ -1,0 +1,10 @@
+record_id,release,source_type,record_observation,known_limitation
+H-INT-01,Day1,Victim intake,"On 26 Oct 2026 NRM reported potentially compromised credentials, anomalous endpoints and possible ransomware; asserted 5.2 GB of records stolen without supporting content evidence.",Victim allegation; not verified forensic finding.
+H-IDP-01,Day1,IdP authentication,2026-10-24 22:14:07Z successful sign-in for NRM-OPS-4 from 198.51.100.24.,Documentation IP; event does not identify a person or confirm malicious access.
+H-IDP-02,Day1,IdP policy result,2026-10-24 22:16:40Z a second sign-in attempt for the same account/source IP was blocked by a policy check.,Policy logs partial; do not infer operator or location.
+H-EDR-01,Day1,Endpoint summary,2026-10-25 00:03:11Z anomaly associated with a process on WS-17.,Initial alert only; no complete process tree or examiner acquisition.
+H-IAM-01,Day1,Access management,2026-10-25 00:17:22Z svc-nrm privileged role assignment altered.,Initiating principal redacted in partial export.
+H-DNS-01,Day1,DNS resolver,2026-10-25 03:41:00Z WS-17 queried node-7.update.example.,Lookup does not establish a completed connection or malicious traffic.
+H-EDR-02,Day1,Endpoint alert,2026-10-26 07:12:36Z APP-03 generated a potential encryption/ransomware behavior alert.,Alert requires validation; may be false positive.
+H-VND-01,Day1,Vendor threat report,Vendor scores node-7.update.example high risk and claims overlap with fictional access-broker cluster BRKR_AL.,Vendor methodology partly withheld; simulated TLP:AMBER and originator restriction in exercise.
+H-AI-01,Day1,Draft AI-generated note,AI summarizer suggests “BRKR_AL probably stole 5.2 GB” without citing underlying records.,"Generated assertion, not independent evidence; validate against originals."
