@@ -43,12 +43,18 @@ def process_scan_job(db: Session, settings: Settings) -> int:
     db.flush()
     storage = ObjectStorage(settings)
     try:
-        scan = scan_and_disarm(storage.open(document.object_key).read(), settings)
+        scan = scan_and_disarm(
+            storage.open(document.object_key).read(), settings, media_type=document.media_type
+        )
         if not scan.clean:
             raise ValueError("Malware detected")
         digest = hashlib.sha256(scan.sanitized).hexdigest()
-        final_key = f"curriculum/{document.course_version_id}/{document.document_code}/v{document.version_number}-{digest}.pptx"
-        with tempfile.NamedTemporaryFile(suffix=".pptx", delete=False) as temp:
+        suffix = Path(document.source_filename).suffix.lower()
+        final_key = (
+            f"curriculum/{document.course_version_id}/{document.document_code}/"
+            f"v{document.version_number}-{digest}{suffix}"
+        )
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp:
             temp.write(scan.sanitized)
             path = Path(temp.name)
         try:

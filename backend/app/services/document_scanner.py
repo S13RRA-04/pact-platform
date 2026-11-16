@@ -1,4 +1,4 @@
-"""PPTX structural disarm and ClamAV INSTREAM scanning."""
+"""Office-package content disarm and ClamAV INSTREAM scanning."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from defusedxml import ElementTree
 
 from app.config import Settings
 
-BLOCKED_PARTS = ("ppt/embeddings/", "ppt/activex/", "vbaproject.bin")
+BLOCKED_PARTS = ("/embeddings/", "/activex/", "vbaproject.bin")
 REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 
 
@@ -24,17 +24,17 @@ class ScanResult:
     details: dict[str, object]
 
 
-def disarm_pptx(data: bytes) -> tuple[bytes, list[str]]:
+def disarm_office_package(data: bytes) -> tuple[bytes, list[str]]:
     removed: list[str] = []
     source = zipfile.ZipFile(io.BytesIO(data))
     if len(source.infolist()) > 5000 or sum(i.file_size for i in source.infolist()) > 250 * 1024 * 1024:
-        raise ValueError("PPTX archive exceeds safe expansion limits")
+        raise ValueError("Office archive exceeds safe expansion limits")
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as target:
         for info in source.infolist():
             name = info.filename.replace("\\", "/")
             if name.startswith("/") or ".." in name.split("/"):
-                raise ValueError("Unsafe PPTX archive path")
+                raise ValueError("Unsafe Office archive path")
             if any(part in name.lower() for part in BLOCKED_PARTS):
                 removed.append(name)
                 continue
@@ -48,6 +48,10 @@ def disarm_pptx(data: bytes) -> tuple[bytes, list[str]]:
                 content = ElementTree.tostring(root, encoding="utf-8", xml_declaration=True)
             target.writestr(name, content)
     return output.getvalue(), removed
+
+
+# Backward-compatible name for callers that specifically validate PPTX packages.
+disarm_pptx = disarm_office_package
 
 
 def _clamav(data: bytes, settings: Settings) -> tuple[bool, str]:
@@ -65,8 +69,15 @@ def _clamav(data: bytes, settings: Settings) -> tuple[bool, str]:
     return response.endswith("OK"), response
 
 
-def scan_and_disarm(data: bytes, settings: Settings) -> ScanResult:
-    sanitized, removed = disarm_pptx(data)
+def scan_and_disarm(data: bytes, settings: Settings, media_type: str | None = None) -> ScanResult:
+    if zipfile.is_zipfile(io.BytesIO(data)):
+        sanitized, removed = disarm_office_package(data)
+    elif media_type and (media_type.startswith("text/") or media_type == "application/csv"):
+        if b"\x00" in data:
+            raise ValueError("Text document contains NUL bytes")
+        sanitized, removed = data, []
+    else:
+        sanitized, removed = data, []
     clean, response = _clamav(sanitized, settings)
     return ScanResult(
         clean,
