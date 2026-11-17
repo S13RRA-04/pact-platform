@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-ItemType = Literal["evidence_inject", "document_block", "challenge", "debrief", "answer_key"]
+ItemType = Literal["evidence_inject", "document", "document_block", "challenge", "debrief", "answer_key"]
 Audience = Literal["all_students", "investigator", "analyst", "staff"]
 Trigger = Literal["manual", "scheduled", "lesson_gate", "after_item"]
 CODE = r"^[A-Z0-9][A-Z0-9-]{1,31}$"
@@ -25,6 +25,7 @@ class ReleaseItemIn(BaseModel):
     trigger_after_code: str | None = Field(default=None, max_length=32)
     inject_code: str | None = Field(default=None, max_length=16)
     document_block: str | None = Field(default=None, max_length=64)
+    document_code: str | None = Field(default=None, max_length=32)
     body: str = Field(default="", max_length=20_000)
     time_limit_minutes: int | None = Field(default=None, ge=1, le=600)
     instrument_code: str | None = Field(default=None, max_length=8)
@@ -32,7 +33,9 @@ class ReleaseItemIn(BaseModel):
     answer_for_code: str | None = Field(default=None, max_length=32)
     instructor_notes: str = Field(default="", max_length=8_000)
 
-    @field_validator("code", "trigger_after_code", "answer_for_code", "inject_code", mode="before")
+    @field_validator(
+        "code", "trigger_after_code", "answer_for_code", "inject_code", "document_code", mode="before"
+    )
     @classmethod
     def _upper(cls, v: str | None) -> str | None:
         return v.strip().upper() or None if isinstance(v, str) else v

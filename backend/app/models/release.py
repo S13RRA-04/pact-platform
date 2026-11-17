@@ -16,7 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, CreatedAt, one_of, utcnow
 
-ITEM_TYPES = ("evidence_inject", "document_block", "challenge", "debrief", "answer_key")
+ITEM_TYPES = ("evidence_inject", "document", "document_block", "challenge", "debrief", "answer_key")
 AUDIENCES = ("all_students", "investigator", "analyst", "staff")
 TRIGGERS = ("manual", "scheduled", "lesson_gate", "after_item")
 RELEASE_STATES = ("pending", "held", "released", "withdrawn")
@@ -50,6 +50,8 @@ class ReleaseItem(CreatedAt, Base):
     # Type-specific content
     inject_code: Mapped[str | None] = mapped_column(String(16))
     document_block: Mapped[str | None] = mapped_column(String(64))
+    # Single controlled document (latest approved, clean version with this code).
+    document_code: Mapped[str | None] = mapped_column(String(32))
     body: Mapped[str] = mapped_column(Text, default="")
     time_limit_minutes: Mapped[int | None] = mapped_column(Integer)
     instrument_code: Mapped[str | None] = mapped_column(String(8))

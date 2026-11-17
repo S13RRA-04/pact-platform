@@ -11,7 +11,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import audit
@@ -343,7 +343,16 @@ def replace_document(
     if len(data) > 100 * 1024 * 1024:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Document exceeds 100 MB")
     digest = hashlib.sha256(data).hexdigest()
-    version = current.version_number + 1
+    # Next number after the highest existing version of this code (the one replaced may not be the latest).
+    version = (
+        db.scalar(
+            select(func.max(CurriculumDocument.version_number)).where(
+                CurriculumDocument.course_version_id == current.course_version_id,
+                CurriculumDocument.document_code == current.document_code,
+            )
+        )
+        or current.version_number
+    ) + 1
     key = f"quarantine/{current.course_version_id}/{current.document_code}/v{version}-{digest}.pptx"
     with tempfile.NamedTemporaryFile(suffix=".pptx", delete=False) as temp:
         temp.write(data)

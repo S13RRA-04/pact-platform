@@ -55,8 +55,18 @@ instructor-only answer keys) is defined in a **release plan** attached to a scen
    released to students. Scheduled items are opened by the release-scheduler worker (`python -m
    app.scheduler_worker`) and also whenever the plan is viewed.
 
-Databases seeded before release plans existed can be upgraded without re-seeding:
+The platform's case is **HARBORLINE** (v0.3 reinforcing exercise suite). Its evidence library, injects,
+E03 workspaces, exercise packets, instructor keys and K01/K02 items are read from
+`pact curriculum/PACT_Instructor_Exercise_Master_v0.3/` at install time. GLASS HARBOR is retired.
+
+A development database seeded earlier can be converted without re-seeding (keeps accounts, submissions and
+history; moves cohorts from GLASS HARBOR to HARBORLINE; clears only drafts written for the old workspaces).
+It is safe to rerun:
 
     cd backend
     alembic upgrade head
-    python -m app.seed --release-plan
+    python -m app.seed --harborline
+
+**Course Materials** (sidebar) is where students download packets released to their cohort and staff
+download instructor-only materials. Download links are short-lived, tied to the user, and re-checked
+when used; withdrawing a release stops further downloads.

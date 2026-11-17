@@ -3,6 +3,21 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 
+def _release_plan_item(client, login, mutate_headers, instructor: str, code: str) -> None:
+    """Release a HARBORLINE plan item (e.g. an evidence batch) for the instructor's first cohort; idempotent."""
+    login(instructor)
+    cohort_id = client.get("/api/staff/cohorts").json()[0]["id"]
+    plan = client.get(f"/api/cohorts/{cohort_id}/release-plan").json()
+    item = next(i for i in plan["items"] if i["code"] == code)
+    if item["state"] != "released":
+        r = client.post(
+            f"/api/cohorts/{cohort_id}/release-plan/{item['item_id']}/release",
+            headers=mutate_headers,
+            json={},
+        )
+        assert r.status_code == 200, r.text
+
+
 def _assignment(client):
     response = client.get("/api/student/dashboard")
     assert response.status_code == 200
@@ -114,7 +129,8 @@ def test_unreleased_and_cross_cohort_access_are_denied(client, login):
     login("inv.brooks")
     me = client.get("/api/me").json()
     cohort_id = me["memberships"][0]["cohort_id"]
-    assert client.get(f"/api/cohorts/{cohort_id}/evidence/EV-006").status_code == 404
+    # H-ATR-01 exists in HARBORLINE but is only released with E08.
+    assert client.get(f"/api/cohorts/{cohort_id}/evidence/H-ATR-01").status_code == 404
     assert client.get(f"/api/cohorts/{cohort_id + 1}/case").status_code in (403, 404)
 
 
@@ -124,12 +140,15 @@ def test_students_cannot_retrieve_staff_review(client, login):
 
 
 def test_draft_persists_and_submission_is_immutable(client, login, mutate_headers):
+    _release_plan_item(client, login, mutate_headers, "instr.lin", "EVI-E03")
     login("inv.brooks")
     assignment = _assignment(client)
     aid = assignment["id"]
     payload = {
-        "content": {"preservation": "Preserve native exports and document hashes and custody."},
-        "cited_evidence": ["EV-001"],
+        "content": {
+            "alternate_explanation": "H-PXY-01 counts bytes only; an approved backup is not excluded."
+        },
+        "cited_evidence": ["H-PXY-01"],
         "base_revision": 0,
     }
     saved = client.put(f"/api/assignments/{aid}/draft", json=payload, headers=mutate_headers)

@@ -10,7 +10,7 @@ type Item = {
   id: number; code: string; sequence: number; item_type: string; title: string; audience: string;
   trigger_type: string; trigger_day: string | null; trigger_time: string | null; trigger_module_code: string | null;
   trigger_lesson_state: string | null; trigger_after_code: string | null; inject_code: string | null;
-  document_block: string | null; body: string; time_limit_minutes: number | null; instrument_code: string | null;
+  document_block: string | null; document_code: string | null; body: string; time_limit_minutes: number | null; instrument_code: string | null;
   scored: boolean; answer_for_code: string | null; instructor_notes: string;
 };
 type Version = {
@@ -23,7 +23,7 @@ type Draft = Omit<Item, "id"> & { id?: number };
 const blank: Draft = {
   code: "", sequence: 100, item_type: "challenge", title: "", audience: "all_students", trigger_type: "manual",
   trigger_day: null, trigger_time: null, trigger_module_code: null, trigger_lesson_state: null, trigger_after_code: null,
-  inject_code: null, document_block: null, body: "", time_limit_minutes: null, instrument_code: null, scored: false,
+  inject_code: null, document_block: null, document_code: null, body: "", time_limit_minutes: null, instrument_code: null, scored: false,
   answer_for_code: null, instructor_notes: "",
 };
 
@@ -180,6 +180,11 @@ export default function Scenarios() {
                           </select>
                         </label>
                       )}
+                      {draft.item_type === "document" && (
+                        <label className="field">Document code
+                          <input value={draft.document_code ?? ""} onChange={(e) => set("document_code", e.target.value.toUpperCase() || null)} placeholder="e.g. PKT-E03" required />
+                        </label>
+                      )}
                       {draft.item_type === "document_block" && (
                         <label className="field">Document block
                           <select value={draft.document_block ?? ""} onChange={(e) => set("document_block", e.target.value || null)} required>
@@ -287,6 +292,7 @@ export default function Scenarios() {
                           <td>{i.item_type === "answer_key" ? <span className="muted">Never released to students</span> : triggerText(i)}</td>
                           <td className="muted">
                             {i.inject_code && <>Inject {i.inject_code}</>}
+                            {i.document_code && <>Document {i.document_code}</>}
                             {i.document_block && <>Block “{i.document_block}”</>}
                             {i.answer_for_code && <>Answers {i.answer_for_code}</>}
                             {i.time_limit_minutes && <>{i.time_limit_minutes} min </>}

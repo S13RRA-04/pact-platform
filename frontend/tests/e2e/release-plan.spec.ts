@@ -18,7 +18,7 @@ test("plan is authored, approved as a package, activated for a cohort and releas
   // 1. Curriculum editor clones the approved plan, adds an investigator-only challenge, submits.
   await persona(page, "Sam Ortega");
   await nav(page, "Scenarios").click();
-  await page.getByRole("button", { name: /GLASS-HARBOR v1\.0-dev/ }).click();
+  await page.getByRole("button", { name: /HARBORLINE v0\.3/ }).click();
   await expect(page.getByText("Answer key").first()).toBeVisible();
   await page.getByPlaceholder("New version label, e.g. 1.1").fill(label);
   await page.getByRole("button", { name: "Clone to new version" }).click();
@@ -37,7 +37,7 @@ test("plan is authored, approved as a package, activated for a cohort and releas
   // 2. Content approver approves the whole plan; it locks.
   await persona(page, "Dana Whitfield");
   await nav(page, "Scenarios").click();
-  await page.getByRole("button", { name: new RegExp(`GLASS-HARBOR v${label.replace(".", "\\.")}`) }).click();
+  await page.getByRole("button", { name: new RegExp(`HARBORLINE v${label.replace(".", "\\.")}`) }).click();
   await page.getByRole("button", { name: "Approve release plan" }).click();
   await expect(page.getByText("Release plan approved and locked.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Add item" })).toHaveCount(0);
@@ -52,9 +52,9 @@ test("plan is authored, approved as a package, activated for a cohort and releas
   await page.getByLabel("End").fill("2026-01-16");
   await page.getByRole("button", { name: "Create cohort" }).click();
   await expect(page.getByRole("heading", { name: `Release plan ${stamp}` })).toBeVisible();
-  await page.getByLabel("Approved scenario version").selectOption({ label: `GLASS-HARBOR v${label}` });
+  await page.getByLabel("Approved scenario version").selectOption({ label: `HARBORLINE v${label}` });
   await page.getByRole("button", { name: "Activate scenario" }).click();
-  await expect(page.getByText(`Running GLASS-HARBOR v${label}`)).toBeVisible();
+  await expect(page.getByText(`Running HARBORLINE v${label}`)).toBeVisible();
   await page.getByRole("combobox", { name: "User", exact: true }).selectOption({ label: "Drew Patel (inv.patel)" });
   await page.getByLabel("Assessed pathway").selectOption("investigator");
   await page.getByRole("button", { name: "Add to cohort" }).click();

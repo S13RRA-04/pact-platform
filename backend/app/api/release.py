@@ -362,6 +362,8 @@ def _plan(db: Session, principal: Principal, cohort: Cohort) -> CohortPlanOut:
             if it.item_type == "evidence_inject"
             else f"Student documents in block “{it.document_block}”"
             if it.item_type == "document_block"
+            else f"Student document {it.document_code}"
+            if it.item_type == "document"
             else it.body
         )
         out.append(

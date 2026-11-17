@@ -73,8 +73,9 @@ class EvidenceItem(CreatedAt, Base):
     sequence: Mapped[int] = mapped_column(Integer)
     title: Mapped[str] = mapped_column(String(200))
     source_type: Mapped[str] = mapped_column(String(64))
-    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    observed_timezone: Mapped[str] = mapped_column(String(64))
+    # NULL when the source record carries no timestamp; never invented.
+    observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    observed_timezone: Mapped[str | None] = mapped_column(String(64))
     observed_as_recorded: Mapped[str] = mapped_column(String(128))
     provenance: Mapped[str] = mapped_column(Text)
     limitations: Mapped[str] = mapped_column(Text)

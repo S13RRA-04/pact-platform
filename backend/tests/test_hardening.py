@@ -139,7 +139,7 @@ def test_scan_job_without_uploader_fails_terminally(client):
             course_version_id=template.course_version_id,
             module_id=template.module_id,
             version_number=99,
-            document_code=template.document_code,
+            document_code="TEST-ORPHAN",  # never borrow a real document code
             title="orphan provenance test",
             media_type=template.media_type,
             source_filename="orphan.pptx",

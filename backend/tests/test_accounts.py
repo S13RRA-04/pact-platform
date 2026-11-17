@@ -369,12 +369,22 @@ def test_pathway_locked_after_submission_and_withdrawal_removes_access(client):
     assert dashboard.status_code == 200
     assignment = dashboard.json()["assignments"][0]
     assert assignment["pathway"] == "investigator"
+    # HARBORLINE releases nothing until the instructor does; open the E03 records first.
+    plan = admin.get(f"/api/cohorts/{cohort_id}/release-plan").json()
+    evi = next(i for i in plan["items"] if i["code"] == "EVI-E03")
+    if evi["state"] != "released":
+        assert (
+            admin.post(
+                f"/api/cohorts/{cohort_id}/release-plan/{evi['item_id']}/release", headers=H, json={}
+            ).status_code
+            == 200
+        )
     saved = student.put(
         f"/api/assignments/{assignment['id']}/draft",
         headers=H,
         json={
-            "content": {"preservation": "Preserve the native cloud audit export with a hash manifest."},
-            "cited_evidence": ["EV-002"],
+            "content": {"alternate_explanation": "Byte counter alone does not show content."},
+            "cited_evidence": ["H-PXY-01"],
         },
     )
     assert saved.status_code == 200, saved.text

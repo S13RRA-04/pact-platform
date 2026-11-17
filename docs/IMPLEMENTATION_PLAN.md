@@ -11,7 +11,7 @@
 ## Initial vertical slice
 
 1. Import the supplied curriculum matrix and preserve M01-M10, E01-E10, P01-P05, K01-K02, and objective identifiers.
-2. Seed the provisional M04 lesson, E03/P02 pathway-specific templates, demo cohort, personas, and fictional GLASS HARBOR evidence.
+2. Seed the provisional M04 lesson, E03/P02 pathway-specific templates, demo cohort, personas, and fictional GLASS HARBOR evidence (since retired; the platform now runs Case HARBORLINE from the v0.3 exercise suite).
 3. Support released-evidence viewing, draft persistence, immutable individual submission, staff review, provisional feedback, and inject release auditing.
 4. Verify denial behavior for wrong pathway, unreleased evidence, evaluator material, and cross-cohort access.
 

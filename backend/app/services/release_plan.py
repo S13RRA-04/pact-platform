@@ -64,6 +64,7 @@ ITEM_FIELDS = (
     "trigger_after_code",
     "inject_code",
     "document_block",
+    "document_code",
     "body",
     "time_limit_minutes",
     "instrument_code",
@@ -138,6 +139,12 @@ def normalize_item(
         d["audience"] = "all_students"
     else:
         d["document_block"] = None
+    if t == "document":
+        if not d.get("document_code"):
+            raise _bad("Document items need a document code")
+        d["audience"] = "all_students"
+    else:
+        d["document_code"] = None
     if t in ("challenge", "debrief", "answer_key"):
         if not (d.get("body") or "").strip():
             raise _bad("Write the content students (or staff) will see")
@@ -417,6 +424,10 @@ def _blocker(db: Session, cohort_id: int, row: Row) -> str | None:
         )
         if inject is None or inject.approval_status != "approved":
             return f"Inject {item.inject_code} has not been approved through content approval"
+    if item.item_type == "document":
+        cohort = db.get(Cohort, cohort_id)
+        if cohort is None or not _documents_for(db, cohort, item):
+            return f"Document {item.document_code} is not available: it must be imported, scanned clean and approved"
     if item.scored:
         inst = db.scalar(
             select(AssessmentInstrument).where(AssessmentInstrument.code == item.instrument_code)
@@ -459,20 +470,11 @@ def _apply_release(
         assert inject is not None
         release_inject_to_cohort(db, cohort_id, inject, actor_id, f"release plan item {item.code}")
         return {"inject": item.inject_code}
-    if item.item_type == "document_block":
+    if item.item_type in ("document", "document_block"):
         cohort = db.get(Cohort, cohort_id)
         assert cohort is not None
-        docs = db.scalars(
-            select(CurriculumDocument).where(
-                CurriculumDocument.course_version_id == cohort.course_version_id,
-                CurriculumDocument.release_block == item.document_block,
-                CurriculumDocument.audience == "student",
-                CurriculumDocument.approval_status == "approved",
-                CurriculumDocument.scan_status == "clean",
-            )
-        )
         codes = []
-        for doc in docs:
+        for doc in _documents_for(db, cohort, item):
             rel = db.scalar(
                 select(CurriculumDocumentRelease).where(
                     CurriculumDocumentRelease.cohort_id == cohort_id,
@@ -489,6 +491,34 @@ def _apply_release(
             codes.append(doc.document_code)
         return {"documents": sorted(codes)}
     return {}
+
+
+def _documents_for(
+    db: Session, cohort: Cohort, item: ReleaseItem, *, released_only: bool = True
+) -> list[CurriculumDocument]:
+    """Student documents an item covers: one code (its latest version) or every document in a block.
+
+    ``released_only`` limits to documents that may be released (approved and scanned clean); withdrawal
+    looks at every version so nothing previously released is left behind.
+    """
+    query = select(CurriculumDocument).where(
+        CurriculumDocument.course_version_id == cohort.course_version_id,
+        CurriculumDocument.audience == "student",
+    )
+    if item.item_type == "document":
+        query = query.where(CurriculumDocument.document_code == item.document_code)
+    else:
+        query = query.where(CurriculumDocument.release_block == item.document_block)
+    if released_only:
+        query = query.where(
+            CurriculumDocument.approval_status == "approved", CurriculumDocument.scan_status == "clean"
+        )
+    docs = list(
+        db.scalars(query.order_by(CurriculumDocument.document_code, CurriculumDocument.version_number))
+    )
+    if item.item_type == "document" and released_only:
+        return docs[-1:]  # only the newest releasable version of a single document
+    return docs
 
 
 def _notify(db: Session, cohort_id: int, item: ReleaseItem) -> int:
@@ -614,17 +644,14 @@ def withdraw(db: Session, cohort_id: int, item_id: int, actor_id: int, reason: s
         )
         if rel is not None:
             rel.withdrawn_at, rel.withdrawn_reason = now, reason
-    elif item.item_type == "document_block":
+    elif item.item_type in ("document", "document_block"):
         cohort = db.get(Cohort, cohort_id)
         assert cohort is not None
-        doc_ids = select(CurriculumDocument.id).where(
-            CurriculumDocument.course_version_id == cohort.course_version_id,
-            CurriculumDocument.release_block == item.document_block,
-        )
+        doc_ids = [d.id for d in _documents_for(db, cohort, item, released_only=False)]
         for rel in db.scalars(
             select(CurriculumDocumentRelease).where(
                 CurriculumDocumentRelease.cohort_id == cohort_id,
-                CurriculumDocumentRelease.document_id.in_(doc_ids),
+                CurriculumDocumentRelease.document_id.in_(doc_ids or [0]),
                 CurriculumDocumentRelease.state == "released",
             )
         ):

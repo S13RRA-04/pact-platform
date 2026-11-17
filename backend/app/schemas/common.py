@@ -260,8 +260,8 @@ class EvidenceOut(Out):
     code: str
     title: str
     source_type: str
-    observed_at: datetime
-    observed_timezone: str
+    observed_at: datetime | None
+    observed_timezone: str | None
     observed_as_recorded: str
     provenance: str
     limitations: str

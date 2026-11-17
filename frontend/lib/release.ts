@@ -1,5 +1,6 @@
 export const TYPE_LABEL: Record<string, string> = {
   evidence_inject: "Evidence",
+  document: "Document",
   document_block: "Documents",
   challenge: "Challenge",
   debrief: "Debrief",

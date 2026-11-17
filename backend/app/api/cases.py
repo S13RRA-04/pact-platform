@@ -91,6 +91,7 @@ def case_dossier(
                     observed_as_recorded=e.observed_as_recorded,
                 )
                 for e, _, _ in evidence
+                if e.observed_at is not None  # undated records appear in the library only
             ),
             key=lambda t: t.observed_at,
         ),

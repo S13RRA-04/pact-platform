@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import date
 from pathlib import Path
 
 from sqlalchemy import select, text
@@ -13,32 +13,23 @@ from app.curriculum_import.importer import import_workbook
 from app.models import (
     ApprovalRequest,
     AssessmentInstrument,
-    AssignmentTemplate,
     Base,
-    Case,
     Cohort,
-    CohortCase,
     CohortMembership,
     CourseVersion,
-    EvidenceItem,
     Exercise,
-    Inject,
     Lesson,
     LessonRelease,
     Module,
-    ReleaseItem,
     RubricCriterion,
-    ScenarioVersion,
     Squad,
     SquadMember,
     User,
     UserRole,
 )
-from app.schemas.release import ReleaseItemIn
-from app.seed import case_glass_harbor as gh
 from app.seed import m04_content as m04
 from app.seed.curriculum_drafts import lesson_shell
-from app.services import release_plan
+from app.seed.harborline_install import install_harborline
 
 EMAIL_DOMAIN = "pact-training.example"
 
@@ -99,64 +90,6 @@ COHORTS = [
     ("PACT-DEMO-02", "PACT Synthetic Comparison Cohort 02", date(2026, 11, 30), date(2026, 12, 4)),
 ]
 COHORT_INSTRUCTOR = {"PACT-DEMO-01": "instr.lin", "PACT-DEMO-02": "instr.reyes"}
-
-
-def install_glass_harbor_release_plan(db: Session) -> str:
-    """Author, approve (synthetic approver) and activate the GLASS HARBOR release plan. Idempotent.
-
-    Works on a freshly seeded database and on one seeded before release plans existed (``--release-plan``),
-    without touching other data. Only cohorts already running the GLASS HARBOR version are activated.
-    """
-    case = db.scalar(select(Case).where(Case.code == gh.CASE["code"]))
-    sv = (
-        db.scalar(
-            select(ScenarioVersion).where(
-                ScenarioVersion.case_id == case.id, ScenarioVersion.version_label == gh.SCENARIO_VERSION
-            )
-        )
-        if case
-        else None
-    )
-    if case is None or sv is None:
-        return "GLASS HARBOR scenario not found; nothing to do"
-    users = {
-        u.username: u
-        for u in db.scalars(select(User).where(User.username.in_(["appr.whitfield", "curr.ortega"])))
-    }
-    if not release_plan.items_for(db, sv.id):
-        if sv.locked:
-            return "Scenario version is locked without a plan; author a new version instead"
-        for spec in gh.RELEASE_PLAN:
-            data = release_plan.normalize_item(db, sv, ReleaseItemIn(**spec).model_dump(), None)
-            db.add(ReleaseItem(scenario_version_id=sv.id, **data))
-            db.flush()
-    if sv.approval_status != "approved":
-        digest = release_plan.plan_sha256(release_plan.items_for(db, sv.id))
-        db.add(
-            ApprovalRequest(
-                workflow="content",
-                entity_type="scenario_version",
-                entity_id=sv.id,
-                entity_code=f"{case.code}/v{sv.version_label}",
-                entity_sha256=digest,
-                summary=f"Approve release plan for {case.code} v{sv.version_label}",
-                status="approved",
-                requested_by_id=users["curr.ortega"].id,
-                decided_by_id=users["appr.whitfield"].id,
-                decided_at=datetime.now(UTC),
-                decision_note="Synthetic seed approval for local development data.",
-            )
-        )
-        sv.approval_status, sv.locked = "approved", True
-        db.flush()
-    activated = 0
-    for cc in db.scalars(select(CohortCase).where(CohortCase.scenario_version_id == sv.id)).all():
-        cohort = db.get(Cohort, cc.cohort_id)
-        release_plan.activate(db, cohort, sv, cc.activated_by_id or users["curr.ortega"].id)
-        activated += 1
-    release_plan.process_due(db)
-    db.commit()
-    return f"Release plan installed for {case.code} v{sv.version_label}; {activated} cohort(s) activated"
 
 
 def _guard(settings: Settings) -> None:
@@ -281,65 +214,18 @@ def seed(db: Session, settings: Settings, workbook: Path, report_path: Path | No
             )
         )
 
-    # --- Case GLASS HARBOR -----------------------------------------------------------------
-    case = Case(**gh.CASE)
-    db.add(case)
-    db.flush()
-    sv = ScenarioVersion(case_id=case.id, version_label=gh.SCENARIO_VERSION, approval_status="draft")
-    db.add(sv)
-    db.flush()
-    seq = 0
-    for ev in gh.BASELINE_EVIDENCE:
-        seq += 1
-        db.add(EvidenceItem(scenario_version_id=sv.id, sequence=seq, **ev))
-    for inj in gh.INJECTS:
-        evidence = inj["evidence"]
-        inject = Inject(scenario_version_id=sv.id, **{k: v for k, v in inj.items() if k != "evidence"})
-        db.add(inject)
-        db.flush()
-        for ev in evidence:
-            seq += 1
-            db.add(EvidenceItem(scenario_version_id=sv.id, inject_id=inject.id, sequence=seq, **ev))
-    db.flush()
-
-    # --- Assignment templates + cohort assignments -----------------------------------------
-    templates = []
-    for spec in (m04.INVESTIGATOR_TEMPLATE, m04.ANALYST_TEMPLATE):
-        t = AssignmentTemplate(exercise_id=e03.id, instrument_id=p02.id, approval_status="draft", **spec)
-        db.add(t)
-        templates.append(t)
-    db.flush()
-
     for code, cohort in cohorts.items():
         instructor = users[COHORT_INSTRUCTOR[code]]
         db.add(LessonRelease(lesson_id=m04_lesson.id, cohort_id=cohort.id, released_by_id=instructor.id))
     db.flush()
 
-    for code, cohort in cohorts.items():
-        db.add(
-            CohortCase(
-                cohort_id=cohort.id,
-                scenario_version_id=sv.id,
-                activated_by_id=users[COHORT_INSTRUCTOR[code]].id,
-            )
-        )
-    db.flush()
-    install_glass_harbor_release_plan(db)
+    # --- Case HARBORLINE (v0.3 exercise suite) -----------------------------------------------
+    install_harborline(
+        db, activate=[(cohort, users[COHORT_INSTRUCTOR[code]].id) for code, cohort in cohorts.items()]
+    )
 
     # --- Pending approvals (separate workflows) --------------------------------------------
-    inj02 = db.scalar(select(Inject).where(Inject.scenario_version_id == sv.id, Inject.code == "INJ-02"))
-    assert inj02 is not None
     editor = users["curr.ortega"]
-    db.add(
-        ApprovalRequest(
-            workflow="content",
-            entity_type="inject",
-            entity_id=inj02.id,
-            entity_code=f"{case.code}/{inj02.code}",
-            summary="Approve draft scenario inject INJ-02 (extortion email) for release.",
-            requested_by_id=editor.id,
-        )
-    )
     db.add(
         ApprovalRequest(
             workflow="assessment_authorization",
@@ -363,16 +249,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Seed synthetic PACT development data")
     parser.add_argument("--reset", action="store_true", help="truncate all tables first")
     parser.add_argument(
-        "--release-plan",
+        "--harborline",
         action="store_true",
-        help="only install the GLASS HARBOR release plan into an existing database",
+        help="install Case HARBORLINE into an existing database and move cohorts off GLASS HARBOR",
     )
     args = parser.parse_args()
     settings = get_settings()
     _guard(settings)
     with make_sessionmaker(get_engine())() as db:
-        if args.release_plan:
-            print(install_glass_harbor_release_plan(db))
+        if args.harborline:
+            print(install_harborline(db, switch_existing=True))
             return
         if args.reset:
             reset(db)
