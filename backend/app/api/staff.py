@@ -55,6 +55,7 @@ from app.security.authz import (
 )
 from app.services import evaluation as ev
 from app.services import work
+from app.services.document_delivery import apply_document_gate
 from app.services.lesson_delivery import open_due_releases
 from app.services.visibility import active_cohort_case
 
@@ -159,6 +160,15 @@ def release_lesson(
     release.released_at = now if body.lifecycle_state == "released" else None
     release.withdrawn_at = now if body.lifecycle_state == "withdrawn" else None
     db.flush()
+    apply_document_gate(
+        db,
+        cohort_id=cohort_id,
+        course_version_id=cohort.course_version_id,
+        module_code=module.code,
+        lifecycle_state=body.lifecycle_state,
+        lesson_id=lesson.id,
+        actor_id=principal.id,
+    )
     audit.record(
         db,
         actor_id=principal.id,
@@ -299,6 +309,9 @@ def curriculum_documents(principal: Principal = Depends(get_principal), db: Sess
             scan_status=document.scan_status,
             scan_engine=document.scan_engine,
             scanned_at=document.scanned_at,
+            audience=document.audience,
+            release_day=document.release_day,
+            release_block=document.release_block,
             imported_at=document.created_at,
         )
         for document, module in rows
@@ -346,7 +359,7 @@ def cohort_console(
     members = db.execute(
         select(CohortMembership, User)
         .join(User, User.id == CohortMembership.user_id)
-        .where(CohortMembership.cohort_id == cohort_id)
+        .where(CohortMembership.cohort_id == cohort_id, CohortMembership.status == "active")
         .order_by(CohortMembership.role, CohortMembership.pathway, User.display_name)
     ).all()
     templates_by_pathway = {

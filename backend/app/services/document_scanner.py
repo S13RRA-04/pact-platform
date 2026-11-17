@@ -46,7 +46,12 @@ def disarm_office_package(data: bytes) -> tuple[bytes, list[str]]:
                         removed.append(f"external:{relationship.get('Target')}")
                         root.remove(relationship)
                 content = ElementTree.tostring(root, encoding="utf-8", xml_declaration=True)
-            target.writestr(name, content)
+            # Keep the member's original timestamp: writestr(name, ...) stamps the current time, which made
+            # the sanitized bytes (and their SHA-256) depend on when the scan ran.
+            member = zipfile.ZipInfo(name, date_time=info.date_time)
+            member.compress_type = zipfile.ZIP_DEFLATED
+            member.external_attr = info.external_attr
+            target.writestr(member, content)
     return output.getvalue(), removed
 
 

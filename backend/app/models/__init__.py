@@ -1,3 +1,4 @@
+from app.models.auth import AccountSetupToken, AuthSession, UserCredential
 from app.models.base import Base
 from app.models.case import Case, CohortCase, EvidenceItem, Inject, InjectRelease, ScenarioVersion
 from app.models.curriculum import (
@@ -7,6 +8,7 @@ from app.models.curriculum import (
     Course,
     CourseVersion,
     CurriculumDocument,
+    CurriculumDocumentRelease,
     CurriculumLink,
     Exercise,
     ImportIssue,
@@ -45,6 +47,9 @@ from app.models.work import (
 )
 
 __all__ = [
+    "AccountSetupToken",
+    "AuthSession",
+    "UserCredential",
     "ActionItem",
     "ApprovalRequest",
     "AssessmentInstrument",
@@ -60,6 +65,7 @@ __all__ = [
     "Course",
     "CourseVersion",
     "CurriculumDocument",
+    "CurriculumDocumentRelease",
     "CriterionResult",
     "CurriculumLink",
     "Draft",

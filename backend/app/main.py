@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.api import admin, assignments, auth, cases, curriculum, staff, student
+from app.api import admin, admin_users, assignments, auth, cases, curriculum, staff, student
 from app.config import Settings, get_settings
 from app.db import get_db
 
@@ -51,6 +51,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         student.router,
         staff.router,
         admin.router,
+        admin_users.router,
+        admin_users.squad_router,
     ):
         app.include_router(r)
     return app

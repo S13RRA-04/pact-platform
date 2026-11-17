@@ -41,14 +41,33 @@ def process_scan_job(db: Session, settings: Settings) -> int:
     job.started_at = datetime.now(UTC)
     job.attempts += 1
     db.flush()
+    job_id, document_id = job.id, document.id
     storage = ObjectStorage(settings)
     try:
+        # Validate before touching storage: an approval request needs a real requester.
+        requester = int(document.provenance.get("uploaded_by") or 0)
+        if db.get(User, requester) is None:
+            raise ValueError("Document provenance has no valid uploader; cannot open an approval request")
         scan = scan_and_disarm(
             storage.open(document.object_key).read(), settings, media_type=document.media_type
         )
         if not scan.clean:
             raise ValueError("Malware detected")
         digest = hashlib.sha256(scan.sanitized).hexdigest()
+        # Disarming can make different uploads byte-identical. Check before mutating storage so a
+        # duplicate is reported plainly instead of surfacing as a constraint violation at commit.
+        duplicate = db.scalar(
+            select(CurriculumDocument).where(
+                CurriculumDocument.course_version_id == document.course_version_id,
+                CurriculumDocument.source_sha256 == digest,
+                CurriculumDocument.id != document.id,
+            )
+        )
+        if duplicate is not None:
+            raise ValueError(
+                f"Sanitized content is identical to {duplicate.document_code} "
+                f"version {duplicate.version_number}; nothing new to approve"
+            )
         suffix = Path(document.source_filename).suffix.lower()
         final_key = (
             f"curriculum/{document.course_version_id}/{document.document_code}/"
@@ -69,7 +88,6 @@ def process_scan_job(db: Session, settings: Settings) -> int:
         document.scan_engine = scan.engine
         document.scanned_at = datetime.now(UTC)
         document.scan_details = scan.details
-        requester = int(document.provenance.get("uploaded_by", 0))
         db.add(
             ApprovalRequest(
                 workflow="content",
@@ -90,7 +108,17 @@ def process_scan_job(db: Session, settings: Settings) -> int:
             entity_id=document.id,
             details=scan.details,
         )
+        db.commit()
+        return 1
     except Exception as exc:
+        # Discard any partial success-path changes, then record a terminal failure so the job is not
+        # picked up again forever.
+        db.rollback()
+        job = db.get(DocumentScanJob, job_id, with_for_update=True)
+        document = db.get(CurriculumDocument, document_id, with_for_update=True)
+        assert job is not None and document is not None
+        job.attempts += 1
+        job.started_at = job.started_at or datetime.now(UTC)
         document.scan_status = "rejected"
         document.scan_details = {"error": str(exc)[:1000]}
         job.status = "failed"

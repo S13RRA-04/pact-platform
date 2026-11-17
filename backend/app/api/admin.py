@@ -6,6 +6,7 @@ import hashlib
 import tempfile
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
@@ -21,8 +22,6 @@ from app.models import (
     ApprovalRequest,
     AssessmentInstrument,
     AuditEvent,
-    Cohort,
-    CohortMembership,
     CourseVersion,
     CurriculumDocument,
     CurriculumLink,
@@ -46,7 +45,6 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 CURRICULUM_READERS = {"curriculum_editor", "content_approver", "program_admin"}
 AUDIT_READERS = {"secops_admin", "program_admin"}
 APPROVAL_READERS = {"curriculum_editor", "content_approver", "program_admin"}
-USER_READERS = {"program_admin", "secops_admin"}
 
 # Which global role may decide each workflow. None = no authority configured (decision blocked).
 WORKFLOW_DECIDERS: dict[str, str | None] = {
@@ -447,6 +445,12 @@ def retire_document(
     return {"status": "retired", "document_id": document.id}
 
 
+def _attachment_header(filename: str) -> str:
+    """Uploaded filenames are untrusted: ASCII-safe fallback plus RFC 5987 encoded original."""
+    safe = "".join(c if c.isascii() and (c.isalnum() or c in "._- ") else "_" for c in filename) or "document"
+    return f"attachment; filename=\"{safe}\"; filename*=UTF-8''{quote(filename, safe='')}"
+
+
 @router.get("/curriculum-documents/download")
 def download_document(
     token: str,
@@ -464,9 +468,22 @@ def download_document(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid download link") from exc
     if claims.get("user_id") != principal.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Download link belongs to another user")
+    # Re-check authorization at use time: a role revoked after the link was issued must not still work.
+    require_global_role(db, principal, CURRICULUM_READERS, "document.download")
     document = db.get(CurriculumDocument, claims.get("document_id"))
     if document is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Document not found")
+    if document.scan_status != "clean":
+        # Quarantined, failed or rejected bytes never leave storage, matching preview and student delivery.
+        audit.record_denial(
+            db,
+            actor_id=principal.id,
+            action="document.download",
+            entity_type="curriculum_document",
+            entity_id=document.id,
+            details={"reason": f"scan_status={document.scan_status}"},
+        )
+        raise HTTPException(status.HTTP_409_CONFLICT, "Only clean scanned documents can be downloaded")
     stream = ObjectStorage(settings).open(document.object_key)
     audit.record(
         db,
@@ -480,31 +497,5 @@ def download_document(
     return StreamingResponse(
         stream,
         media_type=document.media_type,
-        headers={"Content-Disposition": f'attachment; filename="{document.source_filename}"'},
+        headers={"Content-Disposition": _attachment_header(document.source_filename)},
     )
-
-
-@router.get("/users")
-def users(
-    principal: Principal = Depends(get_principal), db: Session = Depends(get_db)
-) -> list[dict[str, Any]]:
-    require_global_role(db, principal, USER_READERS, "admin.users")
-    cohorts = {c.id: c.code for c in db.scalars(select(Cohort))}
-    out = []
-    for u in db.scalars(select(User).order_by(User.id)):
-        ms = db.scalars(select(CohortMembership).where(CohortMembership.user_id == u.id))
-        out.append(
-            {
-                "id": u.id,
-                "username": u.username,
-                "display_name": u.display_name,
-                "is_synthetic": u.is_synthetic,
-                "is_dev_persona": u.is_dev_persona,
-                "active": u.active,
-                "global_roles": sorted(r.role for r in u.roles),
-                "cohort_roles": [
-                    {"cohort": cohorts[m.cohort_id], "role": m.role, "pathway": m.pathway} for m in ms
-                ],
-            }
-        )
-    return out

@@ -12,6 +12,8 @@ from app.db import get_db
 from app.models import (
     Cohort,
     CohortMembership,
+    CurriculumDocument,
+    CurriculumDocumentRelease,
     EvaluationRecord,
     FeedbackRelease,
     Handoff,
@@ -41,6 +43,7 @@ from app.schemas.common import (
     SquadOut,
     SquadViewOut,
     StudentAssessmentOut,
+    StudentCourseDocumentOut,
 )
 from app.security.authz import Principal, deny, get_principal, require_csrf_header
 from app.services import evaluation as ev
@@ -48,6 +51,51 @@ from app.services import work
 from app.services.visibility import active_cohort_case, content_visible, released_evidence_codes
 
 router = APIRouter(prefix="/api/student", tags=["student"])
+
+
+@router.get("/cohorts/{cohort_id}/course-documents", response_model=list[StudentCourseDocumentOut])
+def course_documents(
+    cohort_id: int,
+    principal: Principal = Depends(get_principal),
+    db: Session = Depends(get_db),
+):
+    if principal.student_membership(cohort_id) is None:
+        raise deny(
+            db,
+            principal,
+            action="course_documents.list",
+            entity_type="cohort",
+            entity_id=cohort_id,
+            cohort_id=cohort_id,
+        )
+    rows = db.execute(
+        select(CurriculumDocument, CurriculumDocumentRelease)
+        .join(
+            CurriculumDocumentRelease,
+            CurriculumDocumentRelease.document_id == CurriculumDocument.id,
+        )
+        .where(
+            CurriculumDocumentRelease.cohort_id == cohort_id,
+            CurriculumDocumentRelease.state == "released",
+            CurriculumDocument.approval_status == "approved",
+            CurriculumDocument.scan_status == "clean",
+            CurriculumDocument.audience == "student",
+        )
+        .order_by(CurriculumDocument.document_code)
+    )
+    return [
+        StudentCourseDocumentOut(
+            id=document.id,
+            document_code=document.document_code,
+            title=document.title,
+            media_type=document.media_type,
+            release_day=document.release_day or "",
+            release_block=document.release_block or "",
+            released_at=release.released_at,
+        )
+        for document, release in rows
+        if release.released_at is not None
+    ]
 
 
 @router.get("/notifications", response_model=list[NotificationOut])

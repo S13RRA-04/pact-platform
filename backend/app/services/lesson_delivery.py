@@ -6,7 +6,16 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app import audit
-from app.models import CohortMembership, Lesson, LessonRelease, Notification, NotificationPreference
+from app.models import (
+    Cohort,
+    CohortMembership,
+    Lesson,
+    LessonRelease,
+    Module,
+    Notification,
+    NotificationPreference,
+)
+from app.services.document_delivery import apply_document_gate
 
 
 def open_due_releases(db: Session, cohort_id: int | None = None) -> int:
@@ -34,10 +43,23 @@ def open_due_releases(db: Session, cohort_id: int | None = None) -> int:
             details={"scheduled_for": release.scheduled_for.isoformat() if release.scheduled_for else None},
         )
         lesson = db.get(Lesson, release.lesson_id)
+        module = db.get(Module, lesson.module_id) if lesson else None
+        cohort = db.get(Cohort, release.cohort_id)
+        if lesson and module and cohort:
+            apply_document_gate(
+                db,
+                cohort_id=cohort.id,
+                course_version_id=cohort.course_version_id,
+                module_code=module.code,
+                lifecycle_state="released",
+                lesson_id=lesson.id,
+                actor_id=release.released_by_id,
+            )
         student_ids = db.scalars(
             select(CohortMembership.user_id).where(
                 CohortMembership.cohort_id == release.cohort_id,
                 CohortMembership.role == "student",
+                CohortMembership.status == "active",
             )
         )
         for user_id in student_ids:

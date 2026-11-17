@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import APPROVAL_STATUSES, PATHWAYS, Base, CreatedAt, one_of
@@ -131,7 +131,7 @@ class LessonRelease(CreatedAt, Base):
     released_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     state: Mapped[str] = mapped_column(String(16), default="released")
     scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    taught_at: Mapped[datetime | None]
+    taught_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -146,6 +146,7 @@ class CurriculumDocument(CreatedAt, _VersionScoped, Base):
         ),
         UniqueConstraint("course_version_id", "source_sha256", name="uq_curriculum_document_hash"),
         one_of("approval_status", APPROVAL_STATUSES),
+        Index("ix_curriculum_documents_audience_release_day", "audience", "release_day"),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
     module_id: Mapped[int | None] = mapped_column(ForeignKey("modules.id", ondelete="CASCADE"))
@@ -165,7 +166,28 @@ class CurriculumDocument(CreatedAt, _VersionScoped, Base):
     scan_engine: Mapped[str | None] = mapped_column(String(64))
     scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     scan_details: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    audience: Mapped[str | None] = mapped_column(String(32))
+    release_day: Mapped[str | None] = mapped_column(String(16))
+    release_block: Mapped[str | None] = mapped_column(String(64))
     provenance: Mapped[dict[str, Any]] = mapped_column(default=dict)
+
+
+class CurriculumDocumentRelease(CreatedAt, Base):
+    """Cohort-scoped document visibility created by a lesson lifecycle transition."""
+
+    __tablename__ = "curriculum_document_releases"
+    __table_args__ = (
+        UniqueConstraint("cohort_id", "document_id"),
+        Index("ix_curriculum_document_releases_visibility", "cohort_id", "state"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cohort_id: Mapped[int] = mapped_column(ForeignKey("cohorts.id", ondelete="CASCADE"))
+    document_id: Mapped[int] = mapped_column(ForeignKey("curriculum_documents.id", ondelete="CASCADE"))
+    released_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    trigger_lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="RESTRICT"))
+    state: Mapped[str] = mapped_column(String(16), default="released")
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ScheduleBlock(CreatedAt, _VersionScoped, Base):

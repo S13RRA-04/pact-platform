@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     clamav_host: str | None = None
     clamav_port: int = 3310
     clamav_timeout_seconds: int = 30
+    # Local account authentication
+    totp_encryption_key: str = ""  # Fernet key; required in production
+    session_idle_timeout_seconds: int = 30 * 60
+    mfa_pending_seconds: int = 5 * 60
+    login_max_failures: int = 5
+    login_lockout_seconds: int = 15 * 60
+    setup_token_seconds: int = 72 * 60 * 60
+    password_min_length: int = 12
 
     @model_validator(mode="after")
     def _fail_closed(self) -> Settings:
@@ -62,6 +70,10 @@ class Settings(BaseSettings):
                 raise ValueError("Production requires private R2 object storage configuration")
             if not self.clamav_host:
                 raise ValueError("Production requires PACT_CLAMAV_HOST")
+            if not self.totp_encryption_key:
+                raise ValueError("Production requires PACT_TOTP_ENCRYPTION_KEY (Fernet key)")
+            if not self.cookie_secure:
+                raise ValueError("Production requires PACT_COOKIE_SECURE=true (HTTPS-only session cookie)")
         if not self.session_secret:
             # Development/test only: ephemeral per-process secret. Sessions reset on restart.
             import secrets

@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import CourseVersion, CurriculumDocument, DocumentScanJob
+from app.models import CourseVersion, CurriculumDocument, DocumentScanJob, User
 from app.services.object_storage import ObjectStorage
 
 ALLOWED_SUFFIXES = {".docx", ".csv", ".md", ".txt"}
@@ -54,6 +54,27 @@ def _media_type(path: PurePosixPath) -> str:
     return mimetypes.guess_type(path.name)[0] or "text/plain"
 
 
+def _release_mapping(code: str) -> tuple[str | None, str | None]:
+    if not code.startswith("HBL-") or not code[4:].isdigit():
+        return None, None
+    number = int(code[4:])
+    if number <= 4:
+        return "Mon", "Mon start"
+    if number <= 8:
+        return "Tue", "Tue early"
+    if number == 9:
+        return "Tue", "Tue after discovery"
+    if number == 10:
+        return "Tue", "Tue late"
+    if number == 11:
+        return "Wed", "Wed am"
+    if number <= 14:
+        return "Wed", "Wed PM after approval"
+    if number == 15:
+        return "Thu", "Thu"
+    return "Fri", "Fri"
+
+
 def import_curriculum_archives(
     db: Session, archive_paths: list[Path], course_version_id: int | None = None
 ) -> ArchiveImportResult:
@@ -65,6 +86,9 @@ def import_curriculum_archives(
     if version is None:
         raise ValueError("No course version is available")
     storage = ObjectStorage(get_settings())
+    importer = db.scalar(select(User).where(User.username == "curr.ortega"))
+    if importer is None:
+        raise ValueError("The curriculum import service account is unavailable")
     by_hash = {
         item.source_sha256: item
         for item in db.scalars(
@@ -93,15 +117,28 @@ def import_curriculum_archives(
                 digest = hashlib.sha256(data).hexdigest()
                 existing = by_hash.get(digest)
                 if existing is not None:
+                    code = _document_code(entry.filename)
+                    release_day, release_block = _release_mapping(code)
+                    audience = (
+                        "instructor"
+                        if member.parts[0].lower() == "instructor"
+                        or (archive_path.name.endswith("Instructor_Master.zip") and len(member.parts) == 1)
+                        else "student"
+                    )
                     provenance = dict(existing.provenance)
                     sources = list(provenance.get("source_archives", []))
                     if archive_path.name not in sources:
                         sources.append(archive_path.name)
                     provenance["source_archives"] = sources
+                    provenance["uploaded_by"] = importer.id
                     existing.provenance = provenance
+                    existing.audience = existing.audience or audience
+                    existing.release_day = existing.release_day or release_day
+                    existing.release_block = existing.release_block or release_block
                     deduplicated += 1
                     continue
                 code = _document_code(entry.filename)
+                release_day, release_block = _release_mapping(code)
                 quarantine_key = f"quarantine/{version.id}/{code}/{digest}{member.suffix.lower()}"
                 with tempfile.NamedTemporaryFile(suffix=member.suffix, delete=False) as temp:
                     temp.write(data)
@@ -110,7 +147,12 @@ def import_curriculum_archives(
                     storage.put_file(quarantine_key, temp_path)
                 finally:
                     temp_path.unlink(missing_ok=True)
-                audience = "instructor" if member.parts[0].lower() == "instructor" else "student"
+                audience = (
+                    "instructor"
+                    if member.parts[0].lower() == "instructor"
+                    or (archive_path.name.endswith("Instructor_Master.zip") and len(member.parts) == 1)
+                    else "student"
+                )
                 document = CurriculumDocument(
                     course_version_id=version.id,
                     document_code=code,
@@ -124,10 +166,14 @@ def import_curriculum_archives(
                     approval_status="draft",
                     scan_status="queued",
                     scan_details={"quarantine_key": quarantine_key},
+                    audience=audience,
+                    release_day=release_day,
+                    release_block=release_block,
                     provenance={
                         "source_archives": [archive_path.name],
                         "archive_member": entry.filename,
                         "audience": audience,
+                        "uploaded_by": importer.id,
                     },
                 )
                 db.add(document)

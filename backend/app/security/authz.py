@@ -30,6 +30,7 @@ class Principal:
     user: User
     global_roles: frozenset[str]
     memberships: list[CohortMembership] = field(default_factory=list)
+    session_id: int | None = None
 
     @property
     def id(self) -> int:
@@ -51,19 +52,26 @@ class Principal:
 def get_principal(
     request: Request, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)
 ) -> Principal:
-    uid = sess.read(request.cookies.get(sess.COOKIE_NAME), settings)
-    if uid is None:
+    record = sess.lookup(db, request, settings)
+    # A session still waiting for its second factor authorizes nothing.
+    if record is None or not record.mfa_verified:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
     user = db.scalar(
-        select(User).where(User.id == uid, User.active.is_(True)).options(selectinload(User.roles))
+        select(User).where(User.id == record.user_id, User.active.is_(True)).options(selectinload(User.roles))
     )
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
     if user.is_dev_persona and not settings.dev_personas_enabled:
         # A persona session must never be honored outside development (fail closed).
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
-    memberships = list(db.scalars(select(CohortMembership).where(CohortMembership.user_id == user.id)).all())
-    return Principal(user, frozenset(r.role for r in user.roles), memberships)
+    memberships = list(
+        db.scalars(
+            select(CohortMembership).where(
+                CohortMembership.user_id == user.id, CohortMembership.status == "active"
+            )
+        ).all()
+    )
+    return Principal(user, frozenset(r.role for r in user.roles), memberships, session_id=record.id)
 
 
 def require_csrf_header(request: Request) -> None:

@@ -59,6 +59,7 @@ class CohortMembership(CreatedAt, Base):
         UniqueConstraint("cohort_id", "user_id", "role"),
         one_of("role", COHORT_ROLES),
         one_of("pathway", STUDENT_PATHWAYS),
+        one_of("status", ("active", "withdrawn")),
         # Students must have an assessed pathway; staff must not.
         CheckConstraint(
             "(role = 'student' AND pathway IS NOT NULL) OR (role <> 'student' AND pathway IS NULL)",
@@ -70,6 +71,9 @@ class CohortMembership(CreatedAt, Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     role: Mapped[str] = mapped_column(String(16))
     pathway: Mapped[str | None] = mapped_column(String(16))
+    # Withdrawn memberships are kept (submissions and audit history reference the enrollment period)
+    # but grant no access.
+    status: Mapped[str] = mapped_column(String(16), default="active", server_default="active")
 
     cohort: Mapped[Cohort] = relationship(back_populates="memberships")
     user: Mapped[User] = relationship(back_populates="memberships")

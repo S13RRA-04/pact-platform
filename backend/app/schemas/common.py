@@ -123,7 +123,20 @@ class CurriculumDocumentOut(BaseModel):
     scan_status: str
     scan_engine: str | None
     scanned_at: datetime | None
+    audience: str | None
+    release_day: str | None
+    release_block: str | None
     imported_at: datetime
+
+
+class StudentCourseDocumentOut(BaseModel):
+    id: int
+    document_code: str
+    title: str
+    media_type: str
+    release_day: str
+    release_block: str
+    released_at: datetime
 
 
 class GradingQueueItemOut(BaseModel):
