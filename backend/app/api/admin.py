@@ -31,6 +31,7 @@ from app.models import (
     Module,
     Objective,
     QAGate,
+    ScenarioVersion,
     User,
     WorkerHeartbeat,
 )
@@ -39,6 +40,7 @@ from app.schemas.common import ApprovalDecisionIn, ApprovalOut, AuditEventOut
 from app.security.authz import Principal, get_principal, require_csrf_header, require_global_role
 from app.services.object_storage import ObjectStorage
 from app.services.presentation_preview import preview_pptx
+from app.services.release_plan import items_for, plan_sha256
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -297,6 +299,20 @@ def decide(
             if body.decision == "approved" and document.scan_status != "clean":
                 raise HTTPException(status.HTTP_409_CONFLICT, "Only a clean scanned document can be approved")
             document.approval_status = body.decision
+    if a.workflow == "content" and a.entity_type == "scenario_version":
+        version = db.get(ScenarioVersion, a.entity_id)
+        if version is not None:
+            if body.decision == "approved":
+                current = plan_sha256(items_for(db, version.id))
+                if a.entity_sha256 and current != a.entity_sha256:
+                    raise HTTPException(
+                        status.HTTP_409_CONFLICT,
+                        "The release plan changed after it was submitted; it must be resubmitted",
+                    )
+                # Approval approves the plan as a package and locks it against further edits.
+                version.approval_status, version.locked = "approved", True
+            else:
+                version.approval_status, version.locked = "draft", False
     audit.record(
         db,
         actor_id=principal.id,

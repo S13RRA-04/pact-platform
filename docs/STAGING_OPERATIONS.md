@@ -36,3 +36,27 @@ links from **Users** in the application. If an administrator loses access:
 Session and lockout defaults: 8-hour session, 30-minute idle timeout, 5 failed attempts lock the account
 for 15 minutes. A Program Administrator or Security/Operations Administrator can unlock accounts and end
 sessions from **Users**.
+
+## Scenario release plans
+
+Everything a cohort can receive (case evidence injects, staged document blocks, challenges, debriefs, and
+instructor-only answer keys) is defined in a **release plan** attached to a scenario version.
+
+1. **Author** (Curriculum Editor, under **Scenarios**): add items, each with an audience and a trigger:
+   instructor release, scheduled course day/time (cohort-local), lesson stage (e.g. "M04 taught"), or after
+   another item. Approved versions are locked; clone to a new version to change them.
+2. **Approve** (Content Approver): approves the plan as a package. The approval pins the plan's SHA-256 and is
+   refused if the plan changed after submission. Evidence injects still need their own content approval;
+   scored challenges stay blocked until the instrument is authorized for scored use.
+3. **Activate** (Program Administrator, under **Cohorts**): attaches an approved version to a cohort and
+   creates its case, assignments and release timeline. A cohort runs one version for the whole course.
+4. **Run** (Instructors, under **Release Plan**): release now, hold, resume, or withdraw with a reason.
+   Releases notify students; withdrawals hide the material but keep its history. Answer keys are never
+   released to students. Scheduled items are opened by the release-scheduler worker (`python -m
+   app.scheduler_worker`) and also whenever the plan is viewed.
+
+Databases seeded before release plans existed can be upgraded without re-seeding:
+
+    cd backend
+    alembic upgrade head
+    python -m app.seed --release-plan

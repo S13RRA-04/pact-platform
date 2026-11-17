@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app import audit
 from app.db import get_db
-from app.models import EvidenceItem, Inject, InjectRelease, User
+from app.models import EvidenceItem, Inject, User
 from app.schemas.common import (
     CaseOut,
     EvidenceOut,
@@ -27,6 +27,7 @@ from app.security.authz import (
     require_cohort_role,
     require_csrf_header,
 )
+from app.services import release_plan
 from app.services.visibility import active_cohort_case, released_evidence, releases
 
 router = APIRouter(prefix="/api/cohorts/{cohort_id}", tags=["case"])
@@ -228,15 +229,19 @@ def release_inject(
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Inject has not been approved through the content approval workflow"
         )
-    if db.scalar(
-        select(InjectRelease).where(
-            InjectRelease.cohort_id == cohort_id, InjectRelease.inject_id == inject_id
-        )
-    ):
-        raise HTTPException(status.HTTP_409_CONFLICT, "Inject already released to this cohort")
-    db.add(
-        InjectRelease(cohort_id=cohort_id, inject_id=inject_id, released_by_id=principal.id, note=body.note)
+    plan_row = next(
+        (
+            r
+            for r in release_plan.cohort_rows(db, cohort_id)
+            if r.item.item_type == "evidence_inject" and r.item.inject_code == inject.code
+        ),
+        None,
     )
+    if plan_row is not None:
+        # Same path as the release-plan screen: notifications, follow-on items, plan timeline.
+        release_plan.release(db, cohort_id, plan_row.item.id, principal.id, reason=body.note)
+    elif not release_plan.release_inject_to_cohort(db, cohort_id, inject, principal.id, body.note):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Inject already released to this cohort")
     audit.record(
         db,
         actor_id=principal.id,

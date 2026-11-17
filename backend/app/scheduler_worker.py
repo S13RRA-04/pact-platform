@@ -14,6 +14,7 @@ from app.config import get_settings
 from app.db import get_engine, make_sessionmaker
 from app.models import LessonRelease, WorkerHeartbeat
 from app.services.lesson_delivery import open_due_releases
+from app.services.release_plan import process_due as process_due_plan_items
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("pact.scheduler")
@@ -44,6 +45,8 @@ def run() -> None:
                     )
                 )
                 processed = open_due_releases(db)
+                processed += process_due_plan_items(db)
+                db.commit()
                 heartbeat.processed_count += processed
                 heartbeat.last_success_at = now
                 heartbeat.last_error = None

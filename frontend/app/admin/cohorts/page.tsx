@@ -18,6 +18,9 @@ export default function CohortAdministration() {
   const [member, setMember] = useState({ user_id: "", role: "student", pathway: "investigator" });
   const [showWithdrawn, setShowWithdrawn] = useState(false);
   const [edit, setEdit] = useState<typeof emptyCohort | null>(null);
+  const [versions, setVersions] = useState<{ id: number; case_code: string; version_label: string; approval_status: string; locked: boolean }[]>([]);
+  const [scenario, setScenario] = useState<{ case_code: string | null; scenario_version: string | null } | null>(null);
+  const [chosen, setChosen] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -28,6 +31,8 @@ export default function CohortAdministration() {
   useEffect(() => {
     loadCohorts().catch((e) => setError((e as Error).message));
     api<UserOption[]>("/api/admin/users").then(setUsers).catch(() => undefined);
+    api<{ id: number; case_code: string; version_label: string; approval_status: string; locked: boolean }[]>("/api/admin/scenario-versions")
+      .then((all) => setVersions(all.filter((v) => v.approval_status === "approved" && v.locked))).catch(() => undefined);
   }, []);
 
   async function run(action: () => Promise<CohortDetail>, success: string) {
@@ -44,6 +49,8 @@ export default function CohortAdministration() {
 
   const open = (id: number) => {
     setEdit(null);
+    setScenario(null);
+    api<{ case_code: string | null; scenario_version: string | null }>(`/api/cohorts/${id}/release-plan`).then(setScenario).catch(() => setScenario(null));
     return run(() => api<CohortDetail>(`/api/admin/cohorts/${id}`), "");
   };
 
@@ -103,7 +110,7 @@ export default function CohortAdministration() {
             {cohorts.length === 0 && <p className="muted">No cohorts yet.</p>}
             <nav aria-label="Cohorts">
               {cohorts.map((c) => (
-                <button key={c.id} className={`btn ${selected?.id === c.id ? "" : "secondary"}`}
+                <button key={c.id} className="btn secondary"
                   style={{ width: "100%", justifyContent: "space-between", marginTop: 8 }}
                   aria-current={selected?.id === c.id ? "true" : undefined} onClick={() => open(c.id)}>
                   <span>{c.code}</span>
@@ -191,7 +198,31 @@ export default function CohortAdministration() {
                   </div>
                 </div>
                 )}
-                <p className="muted">New cohorts start without a case or assignments; activating a scenario for a cohort is not yet available in the interface.</p>
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+                  <div className="eyebrow">Scenario</div>
+                  {scenario?.case_code ? (
+                    <p>Running <strong>{scenario.case_code} v{scenario.scenario_version}</strong>. Instructors control releases on the Release Plan page. A cohort keeps one scenario version for the whole course.</p>
+                  ) : (
+                    <form className="row" onSubmit={async (e) => {
+                      e.preventDefault();
+                      setError(""); setMessage("");
+                      try {
+                        const plan = await api<{ case_code: string | null; scenario_version: string | null }>(`/api/admin/cohorts/${selected.id}/activate-scenario`, { method: "POST", body: JSON.stringify({ scenario_version_id: Number(chosen) }) });
+                        setScenario(plan);
+                        setMessage("Scenario activated: the case, its assignments and the release plan are now set up for this cohort.");
+                      } catch (err) { setError((err as Error).message); }
+                    }}>
+                      <label className="field" style={{ margin: 0, minWidth: 260 }}>
+                        <span className="sr-only">Approved scenario version</span>
+                        <select value={chosen} onChange={(e) => setChosen(e.target.value)} required>
+                          <option value="">Select an approved scenario version…</option>
+                          {versions.map((v) => <option key={v.id} value={v.id}>{v.case_code} v{v.version_label}</option>)}
+                        </select>
+                      </label>
+                      <button className="btn" style={{ marginTop: 0 }} type="submit">Activate scenario</button>
+                    </form>
+                  )}
+                </div>
               </section>
 
               <section className="card">

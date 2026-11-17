@@ -108,3 +108,6 @@ class InjectRelease(CreatedAt, Base):
     released_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     released_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     note: Mapped[str | None] = mapped_column(Text)
+    # A withdrawn release hides the inject's evidence from students; the row is kept for history.
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    withdrawn_reason: Mapped[str | None] = mapped_column(Text)

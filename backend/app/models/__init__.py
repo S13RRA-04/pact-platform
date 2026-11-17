@@ -33,6 +33,7 @@ from app.models.governance import (
     WorkerHeartbeat,
 )
 from app.models.identity import Cohort, CohortMembership, Squad, SquadMember, User, UserRole
+from app.models.release import CohortReleaseItem, ReleaseItem
 from app.models.work import (
     Assignment,
     AssignmentTemplate,
@@ -47,6 +48,8 @@ from app.models.work import (
 )
 
 __all__ = [
+    "CohortReleaseItem",
+    "ReleaseItem",
     "AccountSetupToken",
     "AuthSession",
     "UserCredential",

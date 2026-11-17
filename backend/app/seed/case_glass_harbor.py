@@ -311,3 +311,105 @@ Payment instructions will follow. (Placeholder wallet: EXAMPLE-NOT-A-REAL-ADDRES
         ],
     },
 ]
+
+
+# --- Release plan --------------------------------------------------------------------------------------
+# Document blocks reproduce the lesson-stage gates that were previously hard-coded in
+# app/services/document_delivery.py (GATE_TRIGGERS); they are now data the curriculum owner controls.
+_DOC_GATES = [
+    ("DOC-MON-START", "Mon start", "M01", "released"),
+    ("DOC-TUE-EARLY", "Tue early", "M04", "released"),
+    ("DOC-TUE-DISCOVERY", "Tue after discovery", "M04", "taught"),
+    ("DOC-TUE-LATE", "Tue late", "M05", "taught"),
+    ("DOC-WED-AM", "Wed am", "M06", "released"),
+    ("DOC-WED-PM", "Wed PM after approval", "M06", "taught"),
+    ("DOC-THU", "Thu", "M08", "released"),
+    ("DOC-FRI", "Fri", "M10", "released"),
+]
+
+RELEASE_PLAN = [
+    *[
+        {
+            "code": code,
+            "sequence": 10 * (n + 1),
+            "item_type": "document_block",
+            "title": f"Student documents — {block}",
+            "audience": "all_students",
+            "trigger_type": "lesson_gate",
+            "trigger_module_code": module,
+            "trigger_lesson_state": state,
+            "document_block": block,
+        }
+        for n, (code, block, module, state) in enumerate(_DOC_GATES)
+    ],
+    {
+        "code": "EVI-INJ-01",
+        "sequence": 25,
+        "item_type": "evidence_inject",
+        "title": "Mailbox forwarding rule discovered",
+        "audience": "all_students",
+        "trigger_type": "manual",
+        "inject_code": "INJ-01",
+        "instructor_notes": "Release about 45 minutes into E03, after students have drafted initial priorities.",
+    },
+    {
+        "code": "EVI-INJ-02",
+        "sequence": 45,
+        "item_type": "evidence_inject",
+        "title": "Extortion email",
+        "audience": "all_students",
+        "trigger_type": "manual",
+        "inject_code": "INJ-02",
+        "instructor_notes": "Inject content still awaits content approval; release is blocked until then.",
+    },
+    {
+        "code": "CH-E03-TRIAGE",
+        "sequence": 26,
+        "item_type": "challenge",
+        "title": "Inbox rule triage sprint",
+        "audience": "all_students",
+        "trigger_type": "after_item",
+        "trigger_after_code": "EVI-INJ-01",
+        "time_limit_minutes": 15,
+        "scored": False,
+        "body": (
+            "DEVELOPMENT PLACEHOLDER — practice challenge, unscored.\n\n"
+            "The service provider removed the inbox rule before it was preserved (EV-006). In 15 minutes, note:\n"
+            "1. What that removal may have changed or made unrecoverable.\n"
+            "2. Which other records might still show what was forwarded.\n"
+            "3. Who you would ask to preserve those records, and what you would need to route for review first.\n"
+            "Cite evidence identifiers. Investigators and analysts answer from their own role."
+        ),
+    },
+    {
+        "code": "AK-CH-E03-TRIAGE",
+        "sequence": 27,
+        "item_type": "answer_key",
+        "title": "Answer notes — inbox rule triage",
+        "audience": "staff",
+        "trigger_type": "manual",
+        "answer_for_code": "CH-E03-TRIAGE",
+        "body": (
+            "DEVELOPMENT PLACEHOLDER — not an approved answer key.\n"
+            "Look for: recognition that remediation altered evidence before preservation; that the set and content of "
+            "forwarded messages is unknown; mailbox/message-trace style records at the cloud provider and the receiving "
+            "webmail account as possible sources; a preservation request to the webmail provider routed through the "
+            "appropriate review; no assertion of specific legal authority."
+        ),
+    },
+    {
+        "code": "CH-K01",
+        "sequence": 50,
+        "item_type": "challenge",
+        "title": "Knowledge check K01 (authority and sharing)",
+        "audience": "all_students",
+        "trigger_type": "scheduled",
+        "trigger_day": "Tue",
+        "trigger_time": "16:15",
+        "time_limit_minutes": 30,
+        "scored": True,
+        "instrument_code": "K01",
+        "body": "DEVELOPMENT PLACEHOLDER — the K01 item bank has not been supplied (Action Register B06).",
+        "instructor_notes": "Scored use requires assessment authorization of K01; release stays blocked until then.",
+    },
+]

@@ -184,7 +184,8 @@ class CurriculumDocumentRelease(CreatedAt, Base):
     cohort_id: Mapped[int] = mapped_column(ForeignKey("cohorts.id", ondelete="CASCADE"))
     document_id: Mapped[int] = mapped_column(ForeignKey("curriculum_documents.id", ondelete="CASCADE"))
     released_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
-    trigger_lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="RESTRICT"))
+    # NULL when released by the release plan directly (manual/scheduled) rather than by a lesson stage.
+    trigger_lesson_id: Mapped[int | None] = mapped_column(ForeignKey("lessons.id", ondelete="RESTRICT"))
     state: Mapped[str] = mapped_column(String(16), default="released")
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

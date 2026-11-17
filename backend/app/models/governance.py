@@ -37,6 +37,8 @@ class ApprovalRequest(Base):
     decided_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     decision_note: Mapped[str | None] = mapped_column(Text)
+    # Hash of exactly what was submitted; approval is refused if the content changed afterwards.
+    entity_sha256: Mapped[str | None] = mapped_column(String(64))
 
 
 class AuditEvent(Base):

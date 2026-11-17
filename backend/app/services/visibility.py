@@ -40,8 +40,14 @@ def active_cohort_case(db: Session, cohort_id: int) -> tuple[CohortCase, Scenari
 
 
 def releases(db: Session, cohort_id: int) -> dict[int, InjectRelease]:
+    """Active (not withdrawn) inject releases for a cohort, keyed by inject id."""
     return {
-        r.inject_id: r for r in db.scalars(select(InjectRelease).where(InjectRelease.cohort_id == cohort_id))
+        r.inject_id: r
+        for r in db.scalars(
+            select(InjectRelease).where(
+                InjectRelease.cohort_id == cohort_id, InjectRelease.withdrawn_at.is_(None)
+            )
+        )
     }
 
 
