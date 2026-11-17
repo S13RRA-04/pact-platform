@@ -125,11 +125,17 @@ class CohortCreateIn(BaseModel):
 
 
 class CohortUpdateIn(BaseModel):
+    code: str | None = Field(default=None, pattern=COHORT_CODE_PATTERN)
     name: str | None = Field(default=None, min_length=1, max_length=200)
     start_date: Date | None = None
     end_date: Date | None = None
     timezone: str | None = Field(default=None, max_length=64)
     status: Literal["active", "archived"] | None = None
+
+    @field_validator("code", mode="before")
+    @classmethod
+    def _upper(cls, v: str | None) -> str | None:
+        return v.strip().upper() if isinstance(v, str) else v
 
 
 class MemberIn(BaseModel):

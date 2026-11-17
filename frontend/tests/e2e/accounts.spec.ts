@@ -36,7 +36,7 @@ test("admin onboards a user who signs in with password and authenticator, then e
 
   // 1. Program Administrator creates the account and issues a one-time setup link.
   await persona(page, "Jamie Novak");
-  await page.getByRole("link", { name: "Users" }).click();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "Users", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Users and access" })).toBeVisible();
   await page.getByLabel("Username").fill(username);
   await page.getByLabel("Display name").fill(displayName);
@@ -82,7 +82,7 @@ test("admin onboards a user who signs in with password and authenticator, then e
 
   // 4. Administrator creates a cohort, enrolls the user as an analyst and places them in a squad.
   await persona(page, "Jamie Novak");
-  await page.getByRole("link", { name: "Cohorts" }).click();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "Cohorts", exact: true }).click();
   const code = `E2E-${stamp}`;
   await page.getByLabel("Code").fill(code);
   await page.getByLabel("Name").fill(`E2E cohort ${stamp}`);
@@ -90,6 +90,16 @@ test("admin onboards a user who signs in with password and authenticator, then e
   await page.getByLabel("End").fill("2027-02-05");
   await page.getByRole("button", { name: "Create cohort" }).click();
   await expect(page.getByRole("heading", { name: `E2E cohort ${stamp}` })).toBeVisible();
+  // The code can be corrected after creation; an existing code is refused and the form stays open.
+  await page.getByRole("button", { name: "Edit details" }).click();
+  await page.getByLabel("Cohort code").fill("PACT-DEMO-01");
+  await page.getByRole("button", { name: "Save details" }).click();
+  await expect(page.locator(".error[role=alert]")).toContainText("already exists");
+  await page.getByLabel("Cohort code").fill(`E2E-R${stamp}`);
+  await page.getByRole("button", { name: "Save details" }).click();
+  await expect(page.getByText("Cohort details saved.")).toBeVisible();
+  await expect(page.locator(".eyebrow", { hasText: `E2E-R${stamp}` })).toBeVisible();
+  await expect(page.getByRole("button", { name: new RegExp(`E2E-R${stamp}`) })).toBeVisible(); // cohort list
   await page.getByRole("combobox", { name: "User", exact: true }).selectOption({ label: `${displayName} (${username})` });
   await page.getByLabel("Cohort role").selectOption("student");
   await page.getByLabel("Assessed pathway").selectOption("analyst");

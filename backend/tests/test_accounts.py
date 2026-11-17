@@ -447,3 +447,48 @@ def test_production_requires_totp_key_and_secure_cookie():
         Settings(**base, cookie_secure=True)
     with pytest.raises(ValidationError, match="COOKIE_SECURE"):
         Settings(**base, totp_encryption_key="k" * 44)
+
+
+def test_cohort_code_can_be_edited_with_validation_and_audit(client):
+    admin = _admin(client)
+    stamp = f"{next(_seq):02d}{int(time.time()) % 10000}"
+    created = admin.post(
+        "/api/admin/cohorts",
+        headers=H,
+        json={
+            "code": f"RENAME-{stamp}",
+            "name": "Rename me",
+            "start_date": "2027-03-01",
+            "end_date": "2027-03-05",
+        },
+    )
+    assert created.status_code == 201
+    cid = created.json()["id"]
+
+    renamed = admin.patch(f"/api/admin/cohorts/{cid}", headers=H, json={"code": f"pact-27-{stamp}"})
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["code"] == f"PACT-27-{stamp}"  # normalized to upper case
+    assert admin.patch(f"/api/admin/cohorts/{cid}", headers=H, json={"code": "bad code!"}).status_code == 422
+    assert (
+        admin.patch(f"/api/admin/cohorts/{cid}", headers=H, json={"code": "PACT-DEMO-01"}).status_code == 409
+    )
+    assert (
+        admin.patch(f"/api/admin/cohorts/{cid}", headers=H, json={"code": f"PACT-27-{stamp}"}).status_code
+        == 200
+    )
+    assert (
+        _persona(client, "instr.lin")
+        .patch(f"/api/admin/cohorts/{cid}", headers=H, json={"code": "INSTR-01"})
+        .status_code
+        == 403
+    )
+
+    with get_engine(Settings().test_database_url).connect() as conn:
+        details = conn.scalar(
+            text(
+                "SELECT details FROM audit_events WHERE action = 'cohort.update' AND entity_id = :c "
+                "ORDER BY id DESC LIMIT 1"
+            ),
+            {"c": str(cid)},
+        )
+    assert details["code"] == {"from": f"RENAME-{stamp}", "to": f"PACT-27-{stamp}"}

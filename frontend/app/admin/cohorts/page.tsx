@@ -17,6 +17,7 @@ export default function CohortAdministration() {
   const [form, setForm] = useState(emptyCohort);
   const [member, setMember] = useState({ user_id: "", role: "student", pathway: "investigator" });
   const [showWithdrawn, setShowWithdrawn] = useState(false);
+  const [edit, setEdit] = useState<typeof emptyCohort | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -41,7 +42,26 @@ export default function CohortAdministration() {
     }
   }
 
-  const open = (id: number) => run(() => api<CohortDetail>(`/api/admin/cohorts/${id}`), "");
+  const open = (id: number) => {
+    setEdit(null);
+    return run(() => api<CohortDetail>(`/api/admin/cohorts/${id}`), "");
+  };
+
+  async function saveDetails(event: FormEvent) {
+    event.preventDefault();
+    if (!selected || !edit) return;
+    setError("");
+    setMessage("");
+    try {
+      // Keeps the form open on a rejected change (e.g. a code already in use) so it can be corrected.
+      setSelected(await api<CohortDetail>(`/api/admin/cohorts/${selected.id}`, { method: "PATCH", body: JSON.stringify(edit) }));
+      setEdit(null);
+      setMessage("Cohort details saved.");
+      await loadCohorts();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
 
   async function create(event: FormEvent) {
     event.preventDefault();
@@ -123,19 +143,54 @@ export default function CohortAdministration() {
           {selected && (
             <>
               <section className="card">
+                {edit ? (
+                  <form onSubmit={saveDetails} aria-label="Edit cohort details">
+                    <h2>Edit cohort details</h2>
+                    <div className="form-grid">
+                      <label className="field">Cohort code
+                        <input value={edit.code} onChange={(e) => setEdit({ ...edit, code: e.target.value.toUpperCase() })}
+                          pattern="[A-Z0-9][A-Z0-9\-]{2,31}" title="3–32 capital letters, digits or dashes" required />
+                      </label>
+                      <label className="field">Cohort name
+                        <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} maxLength={200} required />
+                      </label>
+                      <label className="field">Start date
+                        <input type="date" value={edit.start_date} onChange={(e) => setEdit({ ...edit, start_date: e.target.value })} required />
+                      </label>
+                      <label className="field">End date
+                        <input type="date" value={edit.end_date} min={edit.start_date} onChange={(e) => setEdit({ ...edit, end_date: e.target.value })} required />
+                      </label>
+                      <label className="field">Cohort timezone (IANA)
+                        <input value={edit.timezone} onChange={(e) => setEdit({ ...edit, timezone: e.target.value })} required />
+                      </label>
+                    </div>
+                    <p className="muted">Changing the code renames the cohort everywhere it is shown. Enrollments, submissions and history are unaffected, and the change is recorded in the audit log.</p>
+                    <div className="row">
+                      <button className="btn" type="submit">Save details</button>
+                      <button className="btn secondary" type="button" onClick={() => setEdit(null)}>Cancel</button>
+                    </div>
+                  </form>
+                ) : (
                 <div className="row" style={{ justifyContent: "space-between" }}>
                   <div>
                     <div className="eyebrow">{selected.code} · curriculum v{selected.course_version}</div>
                     <h2>{selected.name}</h2>
                     <p className="muted">{selected.start_date} to {selected.end_date} · {selected.timezone} · {selected.counts.student} students, {selected.counts.instructor} instructors, {selected.counts.evaluator} evaluators</p>
                   </div>
+                  <div className="actions">
+                  <button className="btn secondary" onClick={() => setEdit({
+                    code: selected.code, name: selected.name, start_date: selected.start_date,
+                    end_date: selected.end_date, timezone: selected.timezone,
+                  })}>Edit details</button>
                   <button className="btn secondary"
                     onClick={() => run(() => api<CohortDetail>(`/api/admin/cohorts/${selected.id}`, {
                       method: "PATCH", body: JSON.stringify({ status: selected.status === "active" ? "archived" : "active" }),
                     }), selected.status === "active" ? "Cohort archived." : "Cohort reactivated.")}>
                     {selected.status === "active" ? "Archive cohort" : "Reactivate cohort"}
                   </button>
+                  </div>
                 </div>
+                )}
                 <p className="muted">New cohorts start without a case or assignments; activating a scenario for a cohort is not yet available in the interface.</p>
               </section>
 

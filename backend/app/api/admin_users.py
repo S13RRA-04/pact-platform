@@ -420,7 +420,18 @@ def update_cohort(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "End date must be on or after the start date"
         )
-    changed = {k: str(v) for k, v in changes.items() if getattr(cohort, k) != v}
+    if "code" in changes and changes["code"] != cohort.code:
+        taken = db.scalar(select(Cohort.id).where(Cohort.code == changes["code"], Cohort.id != cohort.id))
+        if taken:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Cohort code already exists")
+    if "name" in changes:
+        changes["name"] = changes["name"].strip()
+    # Audit records old and new values so a renamed cohort stays traceable.
+    changed = {
+        k: {"from": str(getattr(cohort, k)), "to": str(v)}
+        for k, v in changes.items()
+        if getattr(cohort, k) != v
+    }
     for k in changed:
         setattr(cohort, k, changes[k])
     if changed:
