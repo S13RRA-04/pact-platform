@@ -283,6 +283,7 @@ input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
 .module-context strong{color:var(--text);font-size:12px}
 .lesson-card{margin-top:16px}
 .lesson-header{display:flex;justify-content:space-between;gap:20px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.lesson-header .btn{align-self:flex-start;flex:0 0 auto;white-space:nowrap}
 .lesson-header h2{margin:10px 0 4px}
 .lesson-section{max-width:920px;padding-top:4px;color:var(--text-2);line-height:1.7}
 .lesson-section li{margin:7px 0}
