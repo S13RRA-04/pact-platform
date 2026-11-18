@@ -29,6 +29,7 @@ from app.models import Cohort, CurriculumDocument, CurriculumDocumentRelease, Mo
 from app.security.authz import STAFF_ROLES, Principal, deny, get_principal, require_csrf_header
 from app.services.object_storage import ObjectStorage
 from app.services.presentation_preview import preview_pptx
+from app.services.visibility import student_tracks, track_visible
 
 router = APIRouter(tags=["materials"], dependencies=[Depends(require_csrf_header)])
 SALT = "course-material-download"
@@ -77,15 +78,17 @@ def _student_release(
     if doc.audience != "student" or doc.approval_status != "approved" or doc.scan_status != "clean":
         return None
     cohorts = [m.cohort_id for m in principal.student_memberships()]
-    return db.scalar(
-        select(CurriculumDocumentRelease)
-        .where(
+    for rel in db.scalars(
+        select(CurriculumDocumentRelease).where(
             CurriculumDocumentRelease.document_id == doc.id,
             CurriculumDocumentRelease.state == "released",
             CurriculumDocumentRelease.cohort_id.in_(cohorts or [0]),
         )
-        .limit(1)
-    )
+    ):
+        # A squad-tracked release (one case per squad) reaches only squads holding that track.
+        if track_visible(rel.track, student_tracks(db, rel.cohort_id, principal.id)):
+            return rel
+    return None
 
 
 def _can_download(db: Session, principal: Principal, doc: CurriculumDocument) -> bool:
@@ -147,7 +150,8 @@ def student_materials(principal: Principal = Depends(get_principal), db: Session
         )
         .order_by(CurriculumDocumentRelease.released_at.desc(), CurriculumDocument.document_code)
     ).all()
-    return [_out(d, r, cohorts[r.cohort_id]) for d, r in rows]
+    tracks = {cid: student_tracks(db, cid, principal.id) for cid in cohorts}
+    return [_out(d, r, cohorts[r.cohort_id]) for d, r in rows if track_visible(r.track, tracks[r.cohort_id])]
 
 
 @router.get("/api/staff/materials", response_model=list[MaterialOut])

@@ -52,6 +52,7 @@ from app.security.authz import (
     require_global_role,
 )
 from app.services import release_plan as rp
+from app.services.visibility import student_tracks, track_visible
 
 router = APIRouter(tags=["release-plans"], dependencies=[Depends(require_csrf_header)])
 
@@ -385,6 +386,7 @@ def _plan(db: Session, principal: Principal, cohort: Cohort) -> CohortPlanOut:
                 scored=it.scored,
                 preview=preview,
                 instructor_notes=it.instructor_notes,
+                track=it.track,
             )
         )
     can_control = "program_admin" in principal.global_roles or "instructor" in principal.cohort_roles(
@@ -463,6 +465,7 @@ def student_challenges(principal: Principal = Depends(get_principal), db: Sessio
                 r.state.state == "released"
                 and it.item_type in ("challenge", "debrief")
                 and it.audience in ("all_students", m.pathway)
+                and track_visible(it.track, student_tracks(db, m.cohort_id, principal.id))
             ):
                 out.append(
                     StudentChallengeOut(

@@ -7,7 +7,7 @@ Audience follows the faculty release plan in the suite:
   plan, objective map, READMEs and the *complete* source dossier are instructor-only
   ("Do not distribute the instructor master archive or complete source dossier to students").
 - The staged Day 1–4 case-record files are not imported as documents; they become the case's evidence
-  library (see app/seed/harborline.py), released record by record.
+  library. Under HARBORLINE v0.5 these v0.3 files are staff reference material (see app/seed/harborline.py).
 """
 
 from __future__ import annotations

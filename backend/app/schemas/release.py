@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.models.release import TRACK_PATTERN
+
 ItemType = Literal["evidence_inject", "document", "document_block", "challenge", "debrief", "answer_key"]
 Audience = Literal["all_students", "investigator", "analyst", "staff"]
 Trigger = Literal["manual", "scheduled", "lesson_gate", "after_item"]
@@ -32,6 +34,16 @@ class ReleaseItemIn(BaseModel):
     scored: bool = False
     answer_for_code: str | None = Field(default=None, max_length=32)
     instructor_notes: str = Field(default="", max_length=8_000)
+    # Restrict to squads holding this track, e.g. "case:A" or "site:418"; empty = every student.
+    track: str | None = Field(default=None, pattern=TRACK_PATTERN)
+
+    @field_validator("track", mode="before")
+    @classmethod
+    def _track(cls, v: str | None) -> str | None:
+        if not isinstance(v, str) or not v.strip():
+            return None
+        kind, _, label = v.strip().partition(":")
+        return f"{kind.lower()}:{label.upper()}"
 
     @field_validator(
         "code", "trigger_after_code", "answer_for_code", "inject_code", "document_code", mode="before"
@@ -101,6 +113,7 @@ class CohortReleaseOut(BaseModel):
     scored: bool
     preview: str
     instructor_notes: str
+    track: str | None = None
 
 
 class CohortPlanOut(BaseModel):

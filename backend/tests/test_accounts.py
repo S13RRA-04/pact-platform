@@ -369,9 +369,10 @@ def test_pathway_locked_after_submission_and_withdrawal_removes_access(client):
     assert dashboard.status_code == 200
     assignment = dashboard.json()["assignments"][0]
     assert assignment["pathway"] == "investigator"
-    # HARBORLINE releases nothing until the instructor does; open the E03 records first.
+    # HARBORLINE releases nothing until the instructor does; open the all-squad Tuesday directive first
+    # (this student has no squad yet, so squad-tracked case records would stay hidden).
     plan = admin.get(f"/api/cohorts/{cohort_id}/release-plan").json()
-    evi = next(i for i in plan["items"] if i["code"] == "EVI-E03")
+    evi = next(i for i in plan["items"] if i["code"] == "PKT-09")
     if evi["state"] != "released":
         assert (
             admin.post(
@@ -383,8 +384,8 @@ def test_pathway_locked_after_submission_and_withdrawal_removes_access(client):
         f"/api/assignments/{assignment['id']}/draft",
         headers=H,
         json={
-            "content": {"alternate_explanation": "Byte counter alone does not show content."},
-            "cited_evidence": ["H-PXY-01"],
+            "content": {"reversible_fact": "A shared gateway is not proof of one offender."},
+            "cited_evidence": ["HX-COORD-01"],
         },
     )
     assert saved.status_code == 200, saved.text

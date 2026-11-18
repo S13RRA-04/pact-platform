@@ -109,5 +109,8 @@ test("admin onboards a user who signs in with password and authenticator, then e
   await page.getByRole("button", { name: "Add squad" }).click();
   await page.getByLabel("Add a student to Delta").selectOption({ label: `${displayName} (analyst)` });
   await expect(page.getByRole("button", { name: `Remove ${displayName} from Delta` })).toBeVisible();
+  // Release tracks: Delta receives Case D packets and records only.
+  await page.getByLabel("Case for Delta").selectOption("D");
+  await expect(page.getByLabel("Case for Delta")).toHaveValue("D");
   await page.screenshot({ path: "test-results/accounts-cohort-admin.png", fullPage: true });
 });

@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Shell } from "../../../components/Shell";
 import { api, Me } from "../../../lib/api";
-import { AUDIENCE_LABEL, TYPE_LABEL, triggerText } from "../../../lib/release";
+import { TRACK_OPTIONS, TYPE_LABEL, audienceText, triggerText } from "../../../lib/release";
 
 type Option = { code: string; label: string };
 type Item = {
@@ -11,7 +11,7 @@ type Item = {
   trigger_type: string; trigger_day: string | null; trigger_time: string | null; trigger_module_code: string | null;
   trigger_lesson_state: string | null; trigger_after_code: string | null; inject_code: string | null;
   document_block: string | null; document_code: string | null; body: string; time_limit_minutes: number | null; instrument_code: string | null;
-  scored: boolean; answer_for_code: string | null; instructor_notes: string;
+  scored: boolean; answer_for_code: string | null; instructor_notes: string; track: string | null;
 };
 type Version = {
   id: number; case_code: string; case_title: string; version_label: string; approval_status: string; locked: boolean;
@@ -24,7 +24,7 @@ const blank: Draft = {
   code: "", sequence: 100, item_type: "challenge", title: "", audience: "all_students", trigger_type: "manual",
   trigger_day: null, trigger_time: null, trigger_module_code: null, trigger_lesson_state: null, trigger_after_code: null,
   inject_code: null, document_block: null, document_code: null, body: "", time_limit_minutes: null, instrument_code: null, scored: false,
-  answer_for_code: null, instructor_notes: "",
+  answer_for_code: null, instructor_notes: "", track: null,
 };
 
 export default function Scenarios() {
@@ -172,6 +172,13 @@ export default function Scenarios() {
                           </select>
                         </label>
                       )}
+                      {draft.item_type !== "answer_key" && draft.item_type !== "evidence_inject" && (
+                        <label className="field">Squads
+                          <select value={draft.track ?? ""} onChange={(e) => set("track", e.target.value || null)}>
+                            {TRACK_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                          </select>
+                        </label>
+                      )}
                       {draft.item_type === "evidence_inject" && (
                         <label className="field">Inject
                           <select value={draft.inject_code ?? ""} onChange={(e) => set("inject_code", e.target.value || null)} required>
@@ -288,7 +295,7 @@ export default function Scenarios() {
                         <tr key={i.id}>
                           <td><strong>{i.code}</strong><div className="muted">{i.title}</div></td>
                           <td><span className={`status ${i.item_type === "answer_key" ? "danger" : "neutral"}`}>{TYPE_LABEL[i.item_type]}</span></td>
-                          <td>{AUDIENCE_LABEL[i.audience]}</td>
+                          <td>{audienceText(i.audience, i.track)}</td>
                           <td>{i.item_type === "answer_key" ? <span className="muted">Never released to students</span> : triggerText(i)}</td>
                           <td className="muted">
                             {i.inject_code && <>Inject {i.inject_code}</>}

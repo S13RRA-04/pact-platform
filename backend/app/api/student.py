@@ -48,7 +48,14 @@ from app.schemas.common import (
 from app.security.authz import Principal, deny, get_principal, require_csrf_header
 from app.services import evaluation as ev
 from app.services import work
-from app.services.visibility import active_cohort_case, content_visible, released_evidence_codes
+from app.services.visibility import (
+    active_cohort_case,
+    content_visible,
+    released_evidence_codes,
+    squad_tracks,
+    student_tracks,
+    track_visible,
+)
 
 router = APIRouter(prefix="/api/student", tags=["student"])
 
@@ -68,6 +75,7 @@ def course_documents(
             entity_id=cohort_id,
             cohort_id=cohort_id,
         )
+    tracks = student_tracks(db, cohort_id, principal.id)
     rows = db.execute(
         select(CurriculumDocument, CurriculumDocumentRelease)
         .join(
@@ -94,7 +102,7 @@ def course_documents(
             released_at=release.released_at,
         )
         for document, release in rows
-        if release.released_at is not None
+        if release.released_at is not None and track_visible(release.track, tracks)
     ]
 
 
@@ -216,6 +224,8 @@ def squad_out(db: Session, squad: Squad) -> SquadOut:
     return SquadOut(
         id=squad.id,
         name=squad.name,
+        case_track=squad.case_track,
+        site_team=squad.site_team,
         members=[SquadMemberOut(user_id=u.id, display_name=u.display_name, pathway=p) for u, p in rows],
     )
 
@@ -395,7 +405,7 @@ def create_handoff(
         )
     if not (body.established.strip() or body.assessed.strip() or body.unknown.strip()):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Handoff is empty")
-    allowed = released_evidence_codes(db, cohort_id)
+    allowed = released_evidence_codes(db, cohort_id, tracks=squad_tracks(squad))
     if set(body.cited_evidence) - allowed:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Cited evidence must be released evidence")
     active = active_cohort_case(db, cohort_id)

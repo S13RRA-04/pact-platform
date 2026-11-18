@@ -166,6 +166,8 @@ class SquadAdminOut(BaseModel):
     id: int
     name: str
     member_ids: list[int]
+    case_track: str | None = None
+    site_team: str | None = None
 
 
 class CohortAdminOut(BaseModel):
@@ -185,8 +187,19 @@ class CohortDetailOut(CohortAdminOut):
     squads: list[SquadAdminOut]
 
 
+TRACK_LABEL = r"^[A-Z0-9-]{1,8}$"
+
+
 class SquadIn(BaseModel):
     name: str = Field(min_length=1, max_length=64)
+    # Release tracks: case assignment (e.g. "A") and search-site team (e.g. "418"); empty = none.
+    case_track: str | None = Field(default=None, pattern=TRACK_LABEL)
+    site_team: str | None = Field(default=None, pattern=TRACK_LABEL)
+
+    @field_validator("case_track", "site_team", mode="before")
+    @classmethod
+    def _label(cls, v: str | None) -> str | None:
+        return (v.strip().upper() or None) if isinstance(v, str) else v
 
 
 class SquadMembersIn(BaseModel):

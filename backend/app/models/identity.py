@@ -85,6 +85,10 @@ class Squad(CreatedAt, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     cohort_id: Mapped[int] = mapped_column(ForeignKey("cohorts.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(64))
+    # Release tracks this squad receives: its case assignment (e.g. "A") and search-site team (e.g. "418").
+    # Material released on a track ("case:A", "site:418") reaches only squads holding it.
+    case_track: Mapped[str | None] = mapped_column(String(8))
+    site_team: Mapped[str | None] = mapped_column(String(8))
     cohort: Mapped[Cohort] = relationship(back_populates="squads")
     members: Mapped[list[SquadMember]] = relationship(back_populates="squad")
 

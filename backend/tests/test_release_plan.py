@@ -1,4 +1,4 @@
-"""Scenario release plans (Case HARBORLINE): package approval, activation, triggers and per-cohort control."""
+"""Scenario release plans (HARBORLINE v0.5): package approval, activation, squad tracks, per-cohort control."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def _base_version(editor: TestClient) -> dict:
     return next(
         v
         for v in editor.get("/api/admin/scenario-versions").json()
-        if v["case_code"] == "HARBORLINE" and v["version_label"] == "0.3"
+        if v["case_code"] == "HARBORLINE" and v["version_label"] == "0.5"
     )
 
 
@@ -90,28 +90,55 @@ def _act(c: TestClient, cohort_id: int, plan: dict, code: str, action: str, reas
 
 
 # --- the seeded HARBORLINE plan --------------------------------------------------------------------------
-def test_harborline_plan_is_built_from_the_v03_suite(client):
+def test_harborline_plan_is_built_from_the_v05_packets(client):
     editor = _as(client, "curr.ortega")
     base = _base_version(editor)
     assert base["approval_status"] == "approved" and base["locked"]
     detail = editor.get(f"/api/admin/scenario-versions/{base['id']}").json()
     codes = {i["code"]: i for i in detail["items"]}
-    # One packet, one evidence batch (two for E06) and one instructor key per exercise; K01/K02; v0.5 blocks.
-    for ex in ("E00", "E01", "E02", "EPROV", "E03", "E04", "E05", "E07", "E08", "P05"):
-        assert codes[f"PKT-{ex}"]["item_type"] == "document"
-        assert codes[f"AK-{ex}"]["audience"] == "staff"
-    assert {"EVI-E06A", "EVI-E06B", "CH-K01", "CH-K02", "AK-K01", "DOC-TUE-EARLY"} <= set(codes)
-    assert (
-        codes["PKT-E03"]["trigger_module_code"] == "M04"
-        and codes["PKT-E03"]["trigger_lesson_state"] == "taught"
-    )
+    # One document item per staged packet; its records open with it; every gate is instructor-controlled.
+    for n in range(1, 18):
+        pkt = codes[f"PKT-{n:02d}"]
+        assert pkt["item_type"] == "document" and pkt["document_code"] == f"HBL-{n:02d}"
+        assert pkt["trigger_type"] == "manual" and "Release_Register_v0.5" in pkt["instructor_notes"]
+    for n in range(1, 17):
+        evi = codes[f"EVI-{n:02d}"]
+        assert evi["trigger_type"] == "after_item" and evi["trigger_after_code"] == f"PKT-{n:02d}"
+    assert "EVI-17" not in codes  # packet 17 is a worksheet with no new records
+    # Monday/Tuesday case packets go to one squad; Wednesday search returns to one site team.
+    assert [codes[f"PKT-{n:02d}"]["track"] for n in range(1, 9)] == [f"case:{c}" for c in "ABCDABCD"]
+    assert [codes[f"PKT-{n}"]["track"] for n in (12, 13, 14)] == ["site:418", "site:R12", "site:C14"]
+    assert all(codes[f"PKT-{n:02d}"]["track"] is None for n in (9, 10, 11, 15, 16, 17))
+    assert codes["EVI-05"]["track"] == "case:A" and codes["EVI-13"]["track"] == "site:R12"
+    # Faculty keys come from the instructor master, staff only.
+    for code in ("AK-OVERVIEW", "AK-MON", "AK-TUE", "AK-WED", "AK-THU", "AK-FRI", "AK-GATES", "AK-K01"):
+        assert codes[code]["audience"] == "staff" and codes[code]["item_type"] == "answer_key"
+    assert codes["AK-TUE"]["body"].startswith("ACT II") and "Calder Venn" in codes["AK-TUE"]["body"]
+    assert "Gate 1 Monday" in codes["AK-GATES"]["body"]
     # Student-facing knowledge-check text never carries the key; the staff key does.
     assert "INSTRUCTOR KEY" not in codes["CH-K01"]["body"] and "INSTRUCTOR KEY" in codes["AK-K01"]["body"]
-    assert (
-        "Release checklist" in codes["AK-E03"]["body"]
-        and "Annotated instructor key" in codes["AK-E03"]["body"]
-    )
     assert codes["CH-K02"]["scored"] and codes["CH-K02"]["instrument_code"] == "K02"
+    # v0.3 material is reference only now.
+    assert not any(c.startswith(("PKT-E", "AK-E", "DOC-")) for c in codes)
+    assert codes["EVI-LAB"]["trigger_type"] == "manual"
+
+
+def test_records_carry_the_packet_wording_and_faculty_cautions(client):
+    """Evidence text is the packet's own row; staff previews carry the master's caution for the record."""
+    cid = _cohort_ids(client)["PACT-DEMO-01"]
+    instructor = _as(client, "instr.lin")
+    preview = instructor.get(f"/api/cohorts/{cid}/staff/evidence-preview")
+    assert preview.status_code == 200, preview.text
+    items = {e["code"]: e for e in preview.json()["evidence"]}
+    assert items["S-418-01"]["track"] == "site:418" and items["HX-COORD-01"]["track"] is None
+    pc01 = items["PC-01"]
+    assert "Calder Venn was assigned KMS-KEY-67" in pc01["content"]
+    assert pc01["limitations"].startswith("Assigned device")
+    assert "token could have been shared or compromised" in pc01["instructor_notes"]
+    assert "Device association" in pc01["instructor_notes"]  # continuity register "do not overstate"
+    # The locked H- records keep their own observation and raw lines, one record per ID.
+    assert {"H-EDR-01", "H-IAM-01"} <= set(items)
+    assert items["X-A-01"]["observed_as_recorded"].startswith("24 Oct 22:11:50Z")
 
 
 def test_approved_plan_is_locked_and_changes_go_into_a_clone(client):
@@ -202,10 +229,15 @@ def test_approved_plan_is_locked_and_changes_go_into_a_clone(client):
     )
 
 
-def test_glass_harbor_is_retired_and_activation_rules_hold(client):
+def test_earlier_scenarios_are_retired_and_activation_rules_hold(client):
     editor, admin = _as(client, "curr.ortega"), _as(client, "admin.novak")
     versions = editor.get("/api/admin/scenario-versions").json()
     assert all(v["case_code"] != "GLASS-HARBOR" or v["approval_status"] == "retired" for v in versions)
+    assert all(
+        v["approval_status"] == "retired"
+        for v in versions
+        if v["case_code"] == "HARBORLINE" and v["version_label"] == "0.3"
+    )
     base = _base_version(editor)
     draft = _clone(client, "2")
     cohort_id = _new_cohort(client)
@@ -224,13 +256,17 @@ def test_glass_harbor_is_retired_and_activation_rules_hold(client):
 # --- release control --------------------------------------------------------------------------------------
 def test_release_notifies_and_withdraw_hides_evidence(client):
     cid = _cohort_ids(client)["PACT-DEMO-02"]
-    instructor, student = _as(client, "instr.reyes"), _as(client, "inv.harper")
+    instructor, student = _as(client, "instr.reyes"), _as(client, "inv.harper")  # squad Alpha: case A
     plan = instructor.get(f"/api/cohorts/{cid}/release-plan").json()
-    assert _item(plan, "EVI-E03")["state"] == "pending"
+    assert _item(plan, "PKT-05")["state"] == "pending"
     assert student.get(f"/api/cohorts/{cid}/evidence/H-PXY-01").status_code == 404
 
-    released = _act(instructor, cid, plan, "EVI-E03", "release")
+    # Records wait for their packet; releasing the packet opens them.
+    early = _act(instructor, cid, plan, "EVI-05", "release")
+    assert early.status_code == 409 and "Waiting for PKT-05" in early.json()["detail"]
+    released = _act(instructor, cid, plan, "PKT-05", "release")
     assert released.status_code == 200, released.text
+    assert _item(released.json(), "EVI-05")["state"] == "released"
     evidence = student.get(f"/api/cohorts/{cid}/evidence/H-PXY-01")
     assert evidence.status_code == 200
     body = evidence.json()
@@ -239,33 +275,86 @@ def test_release_notifies_and_withdraw_hides_evidence(client):
         and "network_events.csv" in body["content"]
     )
     assert "Collector, export method and custody chain are not stated" in body["provenance"]
-    assert any(n["title"] == "New case evidence" for n in student.get("/api/student/notifications").json())
+    titles = {n["title"] for n in student.get("/api/student/notifications").json()}
+    assert {"New case evidence", "New course document"} <= titles
 
-    assert _act(instructor, cid, plan, "EVI-E03", "withdraw").status_code == 422  # reason required
-    withdrawn = _act(instructor, cid, plan, "EVI-E03", "withdraw", "Released early by mistake")
-    assert withdrawn.status_code == 200 and _item(withdrawn.json(), "EVI-E03")["state"] == "withdrawn"
+    assert _act(instructor, cid, plan, "EVI-05", "withdraw").status_code == 422  # reason required
+    withdrawn = _act(instructor, cid, plan, "EVI-05", "withdraw", "Released early by mistake")
+    assert withdrawn.status_code == 200 and _item(withdrawn.json(), "EVI-05")["state"] == "withdrawn"
     assert student.get(f"/api/cohorts/{cid}/evidence/H-PXY-01").status_code == 404
-    assert _act(instructor, cid, plan, "EVI-E03", "release").status_code == 200
+    assert _act(instructor, cid, plan, "EVI-05", "release").status_code == 200
     assert student.get(f"/api/cohorts/{cid}/evidence/H-PXY-01").status_code == 200
+
+
+def test_squad_tracks_keep_each_case_with_its_squad(client):
+    """Monday/Tuesday case packets reach only their squad; search returns only their site team (Gate 1)."""
+    cid = _cohort_ids(client)["PACT-DEMO-01"]
+    instructor = _as(client, "instr.lin")
+    alpha, bravo = _as(client, "inv.brooks"), _as(client, "inv.patel")  # Alpha: A/418; Bravo: B/R12
+    plan = instructor.get(f"/api/cohorts/{cid}/release-plan").json()
+    for code in ("PKT-02", "PKT-12"):
+        if _item(plan, code)["state"] != "released":
+            assert _act(instructor, cid, plan, code, "release").status_code == 200
+
+    # Case B's records and packet: Bravo yes, Alpha no (no listing, no record, no link, no citation).
+    assert bravo.get(f"/api/cohorts/{cid}/evidence/B-WIRE-01").status_code == 200
+    assert alpha.get(f"/api/cohorts/{cid}/evidence/B-WIRE-01").status_code == 404
+    assert all(e["code"] != "B-WIRE-01" for e in alpha.get(f"/api/cohorts/{cid}/evidence").json())
+    case = alpha.get(f"/api/cohorts/{cid}/case").json()
+    assert all(u["code"] != "INJ-02" for u in case["updates"])
+    assert all(t["evidence_code"] != "B-WIRE-01" for t in case["timeline"])
+    doc_id = _sql("SELECT max(id) FROM curriculum_documents WHERE document_code = 'HBL-02'").scalar()
+    assert "HBL-02" in {m["document_code"] for m in bravo.get("/api/student/materials").json()}
+    assert "HBL-02" not in {m["document_code"] for m in alpha.get("/api/student/materials").json()}
+    assert alpha.post(f"/api/materials/{doc_id}/download-link", headers=H).status_code == 404
+    assignment = alpha.get("/api/student/dashboard").json()["assignments"][0]
+    assert "B-WIRE-01" not in alpha.get(f"/api/assignments/{assignment['id']}").json()["available_evidence"]
+    cited = alpha.put(
+        f"/api/assignments/{assignment['id']}/draft",
+        headers=H,
+        json={"content": {}, "cited_evidence": ["B-WIRE-01"]},
+    )
+    assert cited.status_code in (409, 422)  # 409 if this persona already submitted
+
+    # Suite 418 search return: Alpha's site team only.
+    assert alpha.get(f"/api/cohorts/{cid}/evidence/S-418-01").status_code == 200
+    assert bravo.get(f"/api/cohorts/{cid}/evidence/S-418-01").status_code == 404
+    # Staff see every track.
+    assert instructor.get(f"/api/cohorts/{cid}/evidence/B-WIRE-01").status_code == 200
+
+    # Re-assigning a squad's track moves access with it (and is audited); restore afterwards.
+    squads = instructor.get(f"/api/cohorts/{cid}/squads").json()["squads"]
+    bravo_squad = next(sq for sq in squads if sq["name"] == "Bravo")
+    url = f"/api/cohorts/{cid}/squads/{bravo_squad['id']}"
+    bad = instructor.patch(url, headers=H, json={"name": "Bravo", "case_track": "bad track"})
+    assert bad.status_code == 422
+    assert alpha.patch(url, headers=H, json={"name": "Bravo"}).status_code in (403, 404)
+    moved = instructor.patch(url, headers=H, json={"name": "Bravo", "case_track": "A", "site_team": "R12"})
+    assert moved.status_code == 200, moved.text
+    assert bravo.get(f"/api/cohorts/{cid}/evidence/B-WIRE-01").status_code == 404
+    restored = instructor.patch(url, headers=H, json={"name": "Bravo", "case_track": "b", "site_team": "r12"})
+    assert next(sq for sq in restored.json()["squads"] if sq["name"] == "Bravo")["case_track"] == "B"
+    assert bravo.get(f"/api/cohorts/{cid}/evidence/B-WIRE-01").status_code == 200
+    assert _sql("SELECT count(*) FROM audit_events WHERE action = 'squad.update'").scalar() >= 2
 
 
 def test_undated_records_stay_out_of_the_timeline(client):
     cid = _cohort_ids(client)["PACT-DEMO-02"]
     instructor, student = _as(client, "instr.reyes"), _as(client, "inv.harper")
     plan = instructor.get(f"/api/cohorts/{cid}/release-plan").json()
-    if _item(plan, "EVI-E02")["state"] != "released":
-        assert _act(instructor, cid, plan, "EVI-E02", "release").status_code == 200
-    vendor = student.get(f"/api/cohorts/{cid}/evidence/H-VND-01").json()
-    assert vendor["observed_at"] is None and vendor["observed_as_recorded"] == "Not recorded in source"
+    if _item(plan, "PKT-09")["state"] != "released":
+        assert _act(instructor, cid, plan, "PKT-09", "release").status_code == 200
+    directive = student.get(f"/api/cohorts/{cid}/evidence/HX-COORD-01").json()
+    assert directive["observed_at"] is None and directive["observed_as_recorded"] == "Not recorded in source"
     timeline = student.get(f"/api/cohorts/{cid}/case").json()["timeline"]
-    assert all(t["evidence_code"] != "H-VND-01" for t in timeline)
+    assert all(t["evidence_code"] != "HX-COORD-01" for t in timeline)
 
 
 def test_answer_keys_and_unauthorized_scoring_stay_blocked(client):
     cid = _cohort_ids(client)["PACT-DEMO-02"]
     instructor = _as(client, "instr.reyes")
     plan = instructor.get(f"/api/cohorts/{cid}/release-plan").json()
-    for code, expected in (("AK-E03", "staff only"), ("CH-K01", "not authorized")):
+    for code, expected in (("AK-TUE", "staff only"), ("CH-K01", "not authorized")):
         r = _act(instructor, cid, plan, code, "release")
         assert r.status_code == 409 and expected in r.json()["detail"], (code, r.text)
 
@@ -274,17 +363,26 @@ def test_hold_and_resume(client):
     cid = _cohort_ids(client)["PACT-DEMO-02"]
     instructor = _as(client, "instr.reyes")
     plan = instructor.get(f"/api/cohorts/{cid}/release-plan").json()
-    held = _act(instructor, cid, plan, "DOC-FRI", "hold", "Panel room not ready")
-    assert held.status_code == 200 and _item(held.json(), "DOC-FRI")["state"] == "held"
-    assert _act(instructor, cid, plan, "DOC-FRI", "hold").status_code == 409
-    resumed = _act(instructor, cid, plan, "DOC-FRI", "resume")
-    assert resumed.status_code == 200 and _item(resumed.json(), "DOC-FRI")["state"] == "pending"
+    held = _act(instructor, cid, plan, "PKT-16", "hold", "Panel room not ready")
+    assert held.status_code == 200 and _item(held.json(), "PKT-16")["state"] == "held"
+    assert _act(instructor, cid, plan, "PKT-16", "hold").status_code == 409
+    resumed = _act(instructor, cid, plan, "PKT-16", "resume")
+    assert resumed.status_code == 200 and _item(resumed.json(), "PKT-16")["state"] == "pending"
 
 
 def test_triggers_cascades_and_cloned_injects_need_their_own_approval(client):
     editor, admin = _as(client, "curr.ortega"), _as(client, "admin.novak")
     draft = _clone(client, "3")
     url = f"/api/admin/scenario-versions/{draft['id']}/items"
+    squad_a = {
+        "code": "CH-SQUAD-A",
+        "item_type": "challenge",
+        "title": "Case A only",
+        "body": "Squad A task",
+        "trigger_type": "after_item",
+        "trigger_after_code": "PKT-09",
+        "track": "case:a",
+    }
     for body in (
         {
             "code": "CH-MON-WARMUP",
@@ -311,10 +409,23 @@ def test_triggers_cascades_and_cloned_injects_need_their_own_approval(client):
             "title": "After the packet",
             "body": "Follow-on",
             "trigger_type": "after_item",
-            "trigger_after_code": "PKT-E03",
+            "trigger_after_code": "PKT-09",
         },
+        {
+            "code": "CH-M04",
+            "item_type": "debrief",
+            "title": "M04 debrief",
+            "body": "Debrief",
+            "trigger_type": "lesson_gate",
+            "trigger_module_code": "M04",
+            "trigger_lesson_state": "taught",
+        },
+        squad_a,
     ):
         assert editor.post(url, headers=H, json=body).status_code == 201, body["code"]
+    assert (
+        editor.post(url, headers=H, json={**squad_a, "code": "CH-BAD", "track": "squad:A"}).status_code == 422
+    )
     _submit_and_approve(client, draft)
 
     past = _new_cohort(client, "2026-02-02", "2026-02-06")
@@ -323,43 +434,38 @@ def test_triggers_cascades_and_cloned_injects_need_their_own_approval(client):
     ).json()
     assert _item(plan, "CH-MON-WARMUP")["state"] == "released"
     assert _item(plan, "CH-MON-WARMUP")["due_at"].startswith("2026-02-02T15:00")  # 09:00 America/Chicago
+    assert _item(plan, "CH-SQUAD-A")["track"] == "case:A"
     future = _new_cohort(client, "2030-03-04", "2030-03-08")
     plan2 = admin.post(
         f"/api/admin/cohorts/{future}/activate-scenario", headers=H, json={"scenario_version_id": draft["id"]}
     ).json()
     assert _item(plan2, "CH-MON-WARMUP")["state"] == "pending"
 
-    # Cloned injects are drafts: the plan is approved but the evidence content is not.
-    r = _act(admin, past, plan, "EVI-E03", "release")
-    assert r.status_code == 409 and "not been approved" in r.json()["detail"]
+    # Packet -> its records and the dependent challenges open automatically. Cloned injects are drafts: the
+    # plan is approved but the evidence content is not, so the records are blocked with a reason.
+    released = _act(admin, past, plan, "PKT-09", "release")
+    assert released.status_code == 200, released.text
+    plan = released.json()
+    assert _item(plan, "CH-AFTER-PKT")["state"] == "released"
+    assert _item(plan, "CH-SQUAD-A")["state"] == "released"
+    assert _item(plan, "EVI-09")["state"] == "pending"
+    assert "not been approved" in _item(plan, "EVI-09")["blocked_reason"]
 
-    # Lesson stage → packet document; packet → dependent challenge opens automatically.
+    # Lesson stage -> gated item.
     lessons = admin.get(f"/api/staff/cohorts/{past}/lesson-releases").json()
     m04 = next(lesson for lesson in lessons if lesson["module_code"] == "M04")
-    assert (
-        admin.post(
-            f"/api/staff/cohorts/{past}/lesson-releases/{m04['lesson_id']}",
-            headers=H,
-            json={"lifecycle_state": "released"},
-        ).status_code
-        == 200
-    )
-    plan = admin.get(f"/api/cohorts/{past}/release-plan").json()
-    assert _item(plan, "DOC-TUE-EARLY")["state"] == "released"
-    assert _item(plan, "PKT-E03")["state"] == "pending"  # gated on "taught"
-    assert (
-        admin.post(
-            f"/api/staff/cohorts/{past}/lesson-releases/{m04['lesson_id']}",
-            headers=H,
-            json={"lifecycle_state": "taught"},
-        ).status_code
-        == 200
-    )
-    plan = admin.get(f"/api/cohorts/{past}/release-plan").json()
-    assert _item(plan, "PKT-E03")["state"] == "released"
-    assert _item(plan, "CH-AFTER-PKT")["state"] == "released"
+    for state in ("released", "taught"):
+        assert (
+            admin.post(
+                f"/api/staff/cohorts/{past}/lesson-releases/{m04['lesson_id']}",
+                headers=H,
+                json={"lifecycle_state": state},
+            ).status_code
+            == 200
+        )
+    assert _item(admin.get(f"/api/cohorts/{past}/release-plan").json(), "CH-M04")["state"] == "released"
 
-    # The student sees the released packet (Course Materials) and pathway-targeted challenges only.
+    # A student without a squad sees untracked material only (fails closed for squad-tracked items).
     enrolled = admin.post(
         f"/api/admin/cohorts/{past}/members",
         headers=H,
@@ -372,9 +478,10 @@ def test_triggers_cascades_and_cloned_injects_need_their_own_approval(client):
     assert enrolled.status_code == 200
     student = _as(client, "inv.harper")
     codes = {m["document_code"] for m in student.get("/api/student/materials").json()}
-    assert "PKT-E03" in codes
+    assert "HBL-09" in codes
     challenges = {c["code"] for c in student.get("/api/student/challenges").json()}
-    assert {"CH-MON-WARMUP", "CH-AFTER-PKT"} <= challenges
+    assert {"CH-MON-WARMUP", "CH-AFTER-PKT", "CH-M04"} <= challenges
+    assert "CH-SQUAD-A" not in challenges
     membership = next(m for m in enrolled.json()["members"] if m["username"] == "inv.harper")
     admin.patch(
         f"/api/admin/cohorts/{past}/members/{membership['membership_id']}",
@@ -390,8 +497,8 @@ def test_plan_access_is_role_and_cohort_scoped(client):
     evaluator = _as(client, "eval.shah")
     view = evaluator.get(f"/api/cohorts/{demo1}/release-plan")
     assert view.status_code == 200 and view.json()["can_control"] is False
-    ak = _item(view.json(), "AK-E03")
-    assert "Release checklist" in ak["preview"]  # staff can read instructor keys
+    ak = _item(view.json(), "AK-TUE")
+    assert ak["preview"].startswith("ACT II")  # staff can read faculty keys
     assert (
         evaluator.post(
             f"/api/cohorts/{demo1}/release-plan/{ak['item_id']}/hold", headers=H, json={}

@@ -14,6 +14,26 @@ export const AUDIENCE_LABEL: Record<string, string> = {
   staff: "Staff only",
 };
 
+/** Squad release track: "case:A" → only squads assigned case A; "site:418" → only that search-site team. */
+export function trackLabel(track: string | null | undefined): string | null {
+  if (!track) return null;
+  const [kind, label] = track.split(":");
+  return kind === "case" ? `Case ${label} squads only` : kind === "site" ? `Site team ${label} only` : track;
+}
+
+/** "All students" + "case:A" reads as "Case A squads only"; a pathway-limited item keeps both parts. */
+export function audienceText(audience: string, track: string | null | undefined): string {
+  const t = trackLabel(track);
+  if (!t) return AUDIENCE_LABEL[audience] ?? audience;
+  return audience === "all_students" ? t : `${AUDIENCE_LABEL[audience]} · ${t}`;
+}
+
+export const TRACK_OPTIONS: [string, string][] = [
+  ["", "Every squad"],
+  ["case:A", "Case A squads"], ["case:B", "Case B squads"], ["case:C", "Case C squads"], ["case:D", "Case D squads"],
+  ["site:418", "Site team 418"], ["site:R12", "Site team R12"], ["site:C14", "Site team C14"],
+];
+
 export const STATE_TONE: Record<string, string> = {
   released: "success",
   pending: "neutral",

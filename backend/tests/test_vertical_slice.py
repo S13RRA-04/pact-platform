@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 
 def _release_plan_item(client, login, mutate_headers, instructor: str, code: str) -> None:
-    """Release a HARBORLINE plan item (e.g. an evidence batch) for the instructor's first cohort; idempotent."""
+    """Release a HARBORLINE plan item (e.g. a packet) for the instructor's first cohort; idempotent."""
     login(instructor)
     cohort_id = client.get("/api/staff/cohorts").json()[0]["id"]
     plan = client.get(f"/api/cohorts/{cohort_id}/release-plan").json()
@@ -129,8 +129,8 @@ def test_unreleased_and_cross_cohort_access_are_denied(client, login):
     login("inv.brooks")
     me = client.get("/api/me").json()
     cohort_id = me["memberships"][0]["cohort_id"]
-    # H-ATR-01 exists in HARBORLINE but is only released with E08.
-    assert client.get(f"/api/cohorts/{cohort_id}/evidence/H-ATR-01").status_code == 404
+    # Y-01 exists in HARBORLINE but is only released with the Thursday packet.
+    assert client.get(f"/api/cohorts/{cohort_id}/evidence/Y-01").status_code == 404
     assert client.get(f"/api/cohorts/{cohort_id + 1}/case").status_code in (403, 404)
 
 
@@ -140,15 +140,13 @@ def test_students_cannot_retrieve_staff_review(client, login):
 
 
 def test_draft_persists_and_submission_is_immutable(client, login, mutate_headers):
-    _release_plan_item(client, login, mutate_headers, "instr.lin", "EVI-E03")
+    _release_plan_item(client, login, mutate_headers, "instr.lin", "PKT-09")  # its records follow
     login("inv.brooks")
     assignment = _assignment(client)
     aid = assignment["id"]
     payload = {
-        "content": {
-            "alternate_explanation": "H-PXY-01 counts bytes only; an approved backup is not excluded."
-        },
-        "cited_evidence": ["H-PXY-01"],
+        "content": {"reversible_fact": "HX-COORD-01 shows shared access paths, not one offender."},
+        "cited_evidence": ["HX-COORD-01"],
         "base_revision": 0,
     }
     saved = client.put(f"/api/assignments/{aid}/draft", json=payload, headers=mutate_headers)
@@ -229,17 +227,19 @@ def test_instructor_release_creates_audit_record(client, login, mutate_headers):
     login("instr.lin")
     cohort = client.get("/api/staff/cohorts").json()[0]
     preview = client.get(f"/api/cohorts/{cohort['id']}/staff/evidence-preview").json()
-    approved = next(
-        (i for i in preview["injects"] if i["approval_status"] == "approved" and not i["released"]), None
-    )
-    if approved is None:
-        return
+    injects = {i["code"]: i for i in preview["injects"]}
+    base = f"/api/cohorts/{cohort['id']}/staff/injects"
+    # A packet's records follow the packet: the console cannot release them ahead of it.
+    if not injects["INJ-15"]["released"]:
+        early = client.post(f"{base}/{injects['INJ-15']['id']}/release", headers=mutate_headers, json={})
+        assert early.status_code == 409 and "Waiting for PKT-15" in early.json()["detail"]
+    lab = injects["INJ-LAB"]  # optional exhibits: released by the instructor directly
     response = client.post(
-        f"/api/cohorts/{cohort['id']}/staff/injects/{approved['id']}/release",
+        f"{base}/{lab['id']}/release",
         headers=mutate_headers,
         json={"note": "Automated release verification"},
     )
-    assert response.status_code == 200
+    assert response.status_code in (200, 409), response.text  # 409 if an earlier run already released it
     login("secops.kim")
     events = client.get("/api/admin/audit-events")
     assert events.status_code == 200

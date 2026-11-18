@@ -139,4 +139,4 @@ P02_CRITERIA = [
     ),
 ]
 
-# E03 workspaces are built from the HARBORLINE v0.3 E03 student packet (app/seed/harborline.py).
+# E03/E04 P02 workspaces are built from the HARBORLINE v0.5 packets' own tasks (app/seed/harborline.py).

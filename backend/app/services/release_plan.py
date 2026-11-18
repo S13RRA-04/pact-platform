@@ -8,6 +8,8 @@ Rules enforced here (not in the UI):
 - Evidence injects also need their own content approval; scored challenges need the instrument to be
   authorized for scored use (assessment authorization is a separate workflow).
 - "after_item" items open only after their prerequisite is released, and open automatically when it is.
+- A tracked item ("case:A", "site:418") reaches only squads holding that track; evidence items take the
+  track of their inject, so even a release made outside the plan stays restricted.
 - Automatic triggers never raise: if an item cannot open, the reason is recorded on the cohort's item state
   and in the audit log so the instructor sees it.
 """
@@ -48,6 +50,7 @@ from app.models import (
     ScheduleBlock,
 )
 from app.models.release import DAYS
+from app.services.visibility import student_tracks, track_visible
 
 STUDENT_AUDIENCES = ("all_students", "investigator", "analyst")
 ITEM_FIELDS = (
@@ -71,6 +74,7 @@ ITEM_FIELDS = (
     "scored",
     "answer_for_code",
     "instructor_notes",
+    "track",
 )
 
 
@@ -123,14 +127,19 @@ def normalize_item(
             raise _bad("Answer key must reference an item code in this version")
     elif d["audience"] == "staff":
         raise _bad("Only answer keys are staff-only; choose a student audience")
+    d.setdefault("track", None)
+    if t == "answer_key":
+        d["track"] = None
     if t == "evidence_inject":
         if not d.get("inject_code"):
             raise _bad("Evidence items need an inject code")
-        if not db.scalar(
-            select(Inject.id).where(Inject.scenario_version_id == sv.id, Inject.code == d["inject_code"])
-        ):
+        inject = db.scalar(
+            select(Inject).where(Inject.scenario_version_id == sv.id, Inject.code == d["inject_code"])
+        )
+        if inject is None:
             raise _bad(f"Inject {d['inject_code']} does not exist in this scenario version")
         d["audience"] = "all_students"  # case evidence is shared by both pathways
+        d["track"] = inject.track  # the inject decides which squads may see its evidence
     else:
         d["inject_code"] = None
     if t == "document_block":
@@ -220,6 +229,7 @@ def clone_version(db: Session, sv: ScenarioVersion, label: str, actor_id: int) -
             title=inj.title,
             student_briefing=inj.student_briefing,
             instructor_notes=inj.instructor_notes,
+            track=inj.track,
             approval_status="draft",
         )
         db.add(copy)
@@ -487,7 +497,7 @@ def _apply_release(
                 )
                 db.add(rel)
             rel.state, rel.released_by_id, rel.trigger_lesson_id = "released", actor_id, lesson_id
-            rel.released_at, rel.withdrawn_at = _now(), None
+            rel.released_at, rel.withdrawn_at, rel.track = _now(), None, item.track
             codes.append(doc.document_code)
         return {"documents": sorted(codes)}
     return {}
@@ -533,12 +543,15 @@ def _notify(db: Session, cohort_id: int, item: ReleaseItem) -> int:
     for m in memberships:
         if item.audience not in ("all_students", m.pathway):
             continue
+        if not track_visible(item.track, student_tracks(db, cohort_id, m.user_id)):
+            continue
         pref = db.get(NotificationPreference, m.user_id)
         if pref and (not pref.in_app_enabled or not pref.content_release_enabled):
             continue
         label = {
             "evidence_inject": "New case evidence",
             "document_block": "New course documents",
+            "document": "New course document",
             "challenge": "New challenge",
             "debrief": "New debrief",
         }.get(item.item_type, "New material")

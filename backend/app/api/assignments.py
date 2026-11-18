@@ -11,7 +11,7 @@ from app.models import Case, Cohort, Draft, Submission
 from app.schemas.common import AssignmentOut, DraftIn, DraftOut, SubmissionOut
 from app.security.authz import STAFF_ROLES, Principal, deny, get_principal, require_csrf_header
 from app.services import work
-from app.services.visibility import released_evidence_codes
+from app.services.visibility import released_evidence_codes, viewer_tracks
 
 router = APIRouter(prefix="/api", tags=["assignments"])
 
@@ -37,7 +37,11 @@ def _assignment_out(db: Session, principal: Principal, assignment_id: int, actio
             revision=draft.revision if draft else 0,
             updated_at=draft.updated_at if draft else None,
         ),
-        available_evidence=sorted(released_evidence_codes(db, assignment.cohort_id)),
+        available_evidence=sorted(
+            released_evidence_codes(
+                db, assignment.cohort_id, tracks=viewer_tracks(db, principal, assignment.cohort_id)
+            )
+        ),
     )
 
 

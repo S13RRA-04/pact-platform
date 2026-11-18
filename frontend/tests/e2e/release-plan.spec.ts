@@ -18,7 +18,7 @@ test("plan is authored, approved as a package, activated for a cohort and releas
   // 1. Curriculum editor clones the approved plan, adds an investigator-only challenge, submits.
   await persona(page, "Sam Ortega");
   await nav(page, "Scenarios").click();
-  await page.getByRole("button", { name: /HARBORLINE v0\.3/ }).click();
+  await page.getByRole("button", { name: /HARBORLINE v0\.5/ }).click();
   await expect(page.getByText("Answer key").first()).toBeVisible();
   await page.getByPlaceholder("New version label, e.g. 1.1").fill(label);
   await page.getByRole("button", { name: "Clone to new version" }).click();

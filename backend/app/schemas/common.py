@@ -274,6 +274,7 @@ class StaffEvidenceOut(EvidenceOut):
     instructor_notes: str
     released: bool
     inject_approval_status: str | None
+    track: str | None = None  # squad track the record is released on (None = every student)
 
 
 class InjectBriefOut(BaseModel):
@@ -319,6 +320,7 @@ class StaffInjectOut(BaseModel):
     released_at: datetime | None
     released_by: str | None
     evidence_codes: list[str]
+    track: str | None = None
 
 
 class StaffEvidencePreviewOut(BaseModel):
@@ -504,6 +506,8 @@ class SquadOut(BaseModel):
     id: int
     name: str
     members: list[SquadMemberOut]
+    case_track: str | None = None
+    site_team: str | None = None
 
 
 class SquadMemberOut(BaseModel):

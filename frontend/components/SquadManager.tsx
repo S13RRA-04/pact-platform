@@ -7,7 +7,12 @@ export type Member = {
   membership_id: number; user_id: number; username: string; display_name: string; role: string;
   pathway: string | null; status: string; squad_id: number | null; squad_name: string | null; has_submissions: boolean;
 };
-export type Squad = { id: number; name: string; member_ids: number[] };
+export type Squad = { id: number; name: string; member_ids: number[]; case_track: string | null; site_team: string | null };
+
+// HARBORLINE v0.5 release tracks: Monday/Tuesday case packets go to one squad (cases A–D) and the Wednesday
+// search returns to one site team. The server enforces them; these are the values the scenario uses.
+const CASES = ["A", "B", "C", "D"];
+const SITES: [string, string][] = [["418", "Suite 418"], ["R12", "Residence R-12"], ["C14", "Storage C-14"]];
 export type CohortDetail = {
   id: number; code: string; name: string; start_date: string; end_date: string; timezone: string; status: string;
   course_version: string; counts: Record<string, number>; members: Member[]; squads: Squad[];
@@ -37,6 +42,12 @@ export function SquadManager({ detail, onChange, onError }: {
     setName("");
   }
 
+  const setTracks = (squad: Squad, change: Partial<Pick<Squad, "case_track" | "site_team">>) =>
+    call(`${base}/${squad.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: squad.name, case_track: squad.case_track, site_team: squad.site_team, ...change }),
+    });
+
   const setMembers = (squad: Squad, ids: number[]) =>
     call(`${base}/${squad.id}/members`, { method: "PUT", body: JSON.stringify({ user_ids: ids }) });
 
@@ -44,6 +55,7 @@ export function SquadManager({ detail, onChange, onError }: {
     <section className="card">
       <h2>Squads</h2>
       <p className="muted">Mix investigators and analysts in each squad where the roster allows. Moving a student here removes them from their previous squad.</p>
+      <p className="muted">Each squad sees only the case packets and records released on its case, and only its own site team&apos;s search returns. A student without a squad sees only material released to every squad.</p>
       <form className="row" onSubmit={create}>
         <label className="field" style={{ margin: 0 }}>
           <span className="sr-only">New squad name</span>
@@ -56,7 +68,7 @@ export function SquadManager({ detail, onChange, onError }: {
       )}
       <div className="table-wrap">
         <table>
-          <thead><tr><th>Squad</th><th>Members</th><th>Add student</th><th /></tr></thead>
+          <thead><tr><th>Squad</th><th>Case</th><th>Search site</th><th>Members</th><th>Add student</th><th /></tr></thead>
           <tbody>
             {detail.squads.map((squad) => {
               const members = students.filter((m) => squad.member_ids.includes(m.user_id));
@@ -64,6 +76,24 @@ export function SquadManager({ detail, onChange, onError }: {
               return (
                 <tr key={squad.id}>
                   <td><strong>{squad.name}</strong></td>
+                  <td>
+                    <label className="field" style={{ margin: 0 }}>
+                      <span className="sr-only">Case for {squad.name}</span>
+                      <select value={squad.case_track ?? ""} onChange={(e) => setTracks(squad, { case_track: e.target.value || null })}>
+                        <option value="">None</option>
+                        {CASES.map((c) => <option key={c} value={c}>Case {c}</option>)}
+                      </select>
+                    </label>
+                  </td>
+                  <td>
+                    <label className="field" style={{ margin: 0 }}>
+                      <span className="sr-only">Search site team for {squad.name}</span>
+                      <select value={squad.site_team ?? ""} onChange={(e) => setTracks(squad, { site_team: e.target.value || null })}>
+                        <option value="">None</option>
+                        {SITES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                      </select>
+                    </label>
+                  </td>
                   <td>
                     {members.length === 0 && <span className="muted">No members</span>}
                     {members.map((m) => (

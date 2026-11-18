@@ -56,6 +56,8 @@ class Inject(CreatedAt, Base):
     student_briefing: Mapped[str] = mapped_column(Text)
     instructor_notes: Mapped[str] = mapped_column(Text, default="")
     approval_status: Mapped[str] = mapped_column(String(16), default="draft")
+    # Restricts the inject's evidence to squads holding this track ("case:A", "site:418"); NULL = everyone.
+    track: Mapped[str | None] = mapped_column(String(16))
 
     scenario_version: Mapped[ScenarioVersion] = relationship(back_populates="injects")
     evidence: Mapped[list[EvidenceItem]] = relationship(back_populates="inject")

@@ -21,6 +21,8 @@ AUDIENCES = ("all_students", "investigator", "analyst", "staff")
 TRIGGERS = ("manual", "scheduled", "lesson_gate", "after_item")
 RELEASE_STATES = ("pending", "held", "released", "withdrawn")
 DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri")
+# Squad-restricted release: "case:<squad case track>" or "site:<squad site team>". NULL = every student.
+TRACK_PATTERN = r"^(case|site):[A-Z0-9-]{1,8}$"
 
 
 class ReleaseItem(CreatedAt, Base):
@@ -58,6 +60,7 @@ class ReleaseItem(CreatedAt, Base):
     scored: Mapped[bool] = mapped_column(Boolean, default=False)
     answer_for_code: Mapped[str | None] = mapped_column(String(32))
     instructor_notes: Mapped[str] = mapped_column(Text, default="")
+    track: Mapped[str | None] = mapped_column(String(16))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

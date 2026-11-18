@@ -192,7 +192,16 @@ def _cohort_detail(db: Session, cohort: Cohort) -> CohortDetailOut:
     return CohortDetailOut(
         **_cohort_out(db, cohort).model_dump(),
         members=members,
-        squads=[SquadAdminOut(id=s.id, name=s.name, member_ids=sorted(squad_members[s.id])) for s in squads],
+        squads=[
+            SquadAdminOut(
+                id=s.id,
+                name=s.name,
+                member_ids=sorted(squad_members[s.id]),
+                case_track=s.case_track,
+                site_team=s.site_team,
+            )
+            for s in squads
+        ],
     )
 
 
@@ -571,7 +580,9 @@ def create_squad(
     db: Session = Depends(get_db),
 ) -> CohortDetailOut:
     cohort = _squad_manager(db, principal, cohort_id, "squad.create")
-    squad = Squad(cohort_id=cohort.id, name=body.name.strip())
+    squad = Squad(
+        cohort_id=cohort.id, name=body.name.strip(), case_track=body.case_track, site_team=body.site_team
+    )
     db.add(squad)
     try:
         db.flush()
@@ -585,7 +596,42 @@ def create_squad(
         entity_type="squad",
         entity_id=squad.id,
         cohort_id=cohort.id,
-        details={"name": squad.name},
+        details={"name": squad.name, "case_track": squad.case_track, "site_team": squad.site_team},
+    )
+    db.commit()
+    return _cohort_detail(db, cohort)
+
+
+@squad_router.patch("/{squad_id}", response_model=CohortDetailOut)
+def update_squad(
+    cohort_id: int,
+    squad_id: int,
+    body: SquadIn,
+    principal: Principal = Depends(get_principal),
+    db: Session = Depends(get_db),
+) -> CohortDetailOut:
+    """Rename a squad or change its release tracks. Track changes take effect immediately: squad members see
+    exactly the material released on the squad's current tracks (nothing is copied to them)."""
+    cohort = _squad_manager(db, principal, cohort_id, "squad.update")
+    squad = db.get(Squad, squad_id)
+    if squad is None or squad.cohort_id != cohort.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Squad not found")
+    before = {"name": squad.name, "case_track": squad.case_track, "site_team": squad.site_team}
+    squad.name, squad.case_track, squad.site_team = body.name.strip(), body.case_track, body.site_team
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "A squad with that name already exists") from exc
+    after = {"name": squad.name, "case_track": squad.case_track, "site_team": squad.site_team}
+    audit.record(
+        db,
+        actor_id=principal.id,
+        action="squad.update",
+        entity_type="squad",
+        entity_id=squad.id,
+        cohort_id=cohort.id,
+        details={"before": before, "after": after},
     )
     db.commit()
     return _cohort_detail(db, cohort)

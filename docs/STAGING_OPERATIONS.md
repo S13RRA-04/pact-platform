@@ -55,13 +55,22 @@ instructor-only answer keys) is defined in a **release plan** attached to a scen
    released to students. Scheduled items are opened by the release-scheduler worker (`python -m
    app.scheduler_worker`) and also whenever the plan is viewed.
 
-The platform's case is **HARBORLINE** (v0.3 reinforcing exercise suite). Its evidence library, injects,
-E03 workspaces, exercise packets, instructor keys and K01/K02 items are read from
-`pact curriculum/PACT_Instructor_Exercise_Master_v0.3/` at install time. GLASS HARBOR is retired.
+The platform's scenario is **Operation HARBORLINE v0.5**. Its staged packets, evidence records (one per
+record ID in each packet's table), faculty keys and P02 workspaces are read at install time from
+`pact curriculum/PACT_HARBORLINE_v0.5_Student_Staged_Packets.zip` and
+`PACT_HARBORLINE_v0.5_Instructor_Master.zip`; the locked H- records keep their raw lines from the v0.3
+case records. GLASS HARBOR and HARBORLINE v0.3 are retired.
+
+**Squads and tracks.** v0.5 gives each squad one case on Monday and sends each Wednesday search return to one
+site team. Before releasing packets, assign every squad a case (A–D) and, for Wednesday, a search site on the
+Squads screen (instructor) or the Cohorts screen (Program Administrator). The server enforces it: a squad
+sees only packets, records and challenges released on its own tracks plus all-squad material; a student
+with no squad sees only all-squad material. Changing a squad's case moves access with it and is audited.
 
 A development database seeded earlier can be converted without re-seeding (keeps accounts, submissions and
-history; moves cohorts from GLASS HARBOR to HARBORLINE; clears only drafts written for the old workspaces).
-It is safe to rerun:
+history; moves cohorts off retired versions; withdraws the old plan's cohort-wide document releases; clears
+only drafts written for other workspaces; gives the demo squads Alpha/Bravo case and site tracks). It is
+safe to rerun:
 
     cd backend
     alembic upgrade head

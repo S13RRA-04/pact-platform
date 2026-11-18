@@ -189,6 +189,8 @@ class CurriculumDocumentRelease(CreatedAt, Base):
     state: Mapped[str] = mapped_column(String(16), default="released")
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Copied from the releasing plan item: only squads holding this track see the document. NULL = everyone.
+    track: Mapped[str | None] = mapped_column(String(16))
 
 
 class ScheduleBlock(CreatedAt, _VersionScoped, Base):

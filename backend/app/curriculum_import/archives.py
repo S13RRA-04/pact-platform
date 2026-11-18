@@ -89,12 +89,16 @@ def import_curriculum_archives(
     importer = db.scalar(select(User).where(User.username == "curr.ortega"))
     if importer is None:
         raise ValueError("The curriculum import service account is unavailable")
-    by_hash = {
-        item.source_sha256: item
-        for item in db.scalars(
-            select(CurriculumDocument).where(CurriculumDocument.course_version_id == version.id)
-        )
-    }
+    # Content disarm rewrites Office files after the scan, so the stored hash changes; the original upload's
+    # hash is kept in provenance and matched too, or every re-import would duplicate the scanned documents.
+    by_hash: dict[str, CurriculumDocument] = {}
+    for item in db.scalars(
+        select(CurriculumDocument).where(CurriculumDocument.course_version_id == version.id)
+    ):
+        by_hash[item.source_sha256] = item
+        original = (item.provenance or {}).get("original_sha256")
+        if original:
+            by_hash[original] = item
     imported = 0
     deduplicated = 0
     for archive_path in archive_paths:
@@ -174,6 +178,7 @@ def import_curriculum_archives(
                         "archive_member": entry.filename,
                         "audience": audience,
                         "uploaded_by": importer.id,
+                        "original_sha256": digest,
                     },
                 )
                 db.add(document)

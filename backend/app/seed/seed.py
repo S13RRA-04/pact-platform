@@ -29,7 +29,7 @@ from app.models import (
 )
 from app.seed import m04_content as m04
 from app.seed.curriculum_drafts import lesson_shell
-from app.seed.harborline_install import install_harborline
+from app.seed.harborline_install import DEV_SQUAD_TRACKS, install_harborline
 
 EMAIL_DOMAIN = "pact-training.example"
 
@@ -161,7 +161,10 @@ def seed(db: Session, settings: Settings, workbook: Path, report_path: Path | No
             if squad_name:
                 key = (cohort_code, squad_name)
                 if key not in squads:
-                    squads[key] = Squad(cohort_id=cohort.id, name=squad_name)
+                    case_track, site_team = DEV_SQUAD_TRACKS.get(squad_name, (None, None))
+                    squads[key] = Squad(
+                        cohort_id=cohort.id, name=squad_name, case_track=case_track, site_team=site_team
+                    )
                     db.add(squads[key])
                     db.flush()
                 db.add(SquadMember(squad_id=squads[key].id, user_id=user.id))
@@ -219,7 +222,7 @@ def seed(db: Session, settings: Settings, workbook: Path, report_path: Path | No
         db.add(LessonRelease(lesson_id=m04_lesson.id, cohort_id=cohort.id, released_by_id=instructor.id))
     db.flush()
 
-    # --- Case HARBORLINE (v0.3 exercise suite) -----------------------------------------------
+    # --- Operation HARBORLINE (v0.5 staged packets) -------------------------------------------
     install_harborline(
         db, activate=[(cohort, users[COHORT_INSTRUCTOR[code]].id) for code, cohort in cohorts.items()]
     )
@@ -251,7 +254,7 @@ def main() -> None:
     parser.add_argument(
         "--harborline",
         action="store_true",
-        help="install Case HARBORLINE into an existing database and move cohorts off GLASS HARBOR",
+        help="install HARBORLINE v0.5 into an existing database and move cohorts off retired versions",
     )
     args = parser.parse_args()
     settings = get_settings()

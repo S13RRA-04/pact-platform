@@ -28,7 +28,7 @@ from app.models import (
 from app.models.base import utcnow
 from app.schemas.common import AssignmentSummaryOut, DraftIn, SubmissionOut
 from app.security.authz import Principal, deny
-from app.services.visibility import content_visible, released_evidence_codes
+from app.services.visibility import content_visible, released_evidence_codes, student_tracks
 
 MAX_TEXT = 20_000
 MAX_CELL = 4_000
@@ -196,8 +196,8 @@ def _has_substance(content: dict[str, Any]) -> bool:
     return False
 
 
-def _check_citations(db: Session, cohort_id: int, cited: list[str]) -> list[str]:
-    allowed = released_evidence_codes(db, cohort_id)
+def _check_citations(db: Session, cohort_id: int, student_id: int, cited: list[str]) -> list[str]:
+    allowed = released_evidence_codes(db, cohort_id, tracks=student_tracks(db, cohort_id, student_id))
     ordered = list(dict.fromkeys(cited))
     if set(ordered) - allowed:
         # Same message for unreleased and nonexistent codes: does not confirm hidden evidence exists.
@@ -231,7 +231,7 @@ def save_draft(
             status.HTTP_409_CONFLICT, "Already submitted; the submitted artifact is immutable"
         )
     content = validate_content(template.sections, payload.content)
-    cited = _check_citations(db, assignment.cohort_id, payload.cited_evidence)
+    cited = _check_citations(db, assignment.cohort_id, principal.id, payload.cited_evidence)
     draft = get_or_create_draft(db, assignment.id, principal.id)
     if payload.base_revision is not None and payload.base_revision != draft.revision:
         raise HTTPException(
@@ -268,7 +268,7 @@ def submit(
     if draft is None or not _has_substance(draft.content):
         raise _bad("Save a draft with content before submitting")
     content = validate_content(template.sections, draft.content)
-    cited = _check_citations(db, assignment.cohort_id, draft.cited_evidence)
+    cited = _check_citations(db, assignment.cohort_id, principal.id, draft.cited_evidence)
     if not cited:
         raise _bad("Cite at least one supporting evidence record before submitting")
     body = {

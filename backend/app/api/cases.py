@@ -28,7 +28,13 @@ from app.security.authz import (
     require_csrf_header,
 )
 from app.services import release_plan
-from app.services.visibility import active_cohort_case, released_evidence, releases
+from app.services.visibility import (
+    active_cohort_case,
+    released_evidence,
+    releases,
+    track_visible,
+    viewer_tracks,
+)
 
 router = APIRouter(prefix="/api/cohorts/{cohort_id}", tags=["case"])
 ANY_MEMBER = frozenset({"student", "instructor", "evaluator"})
@@ -59,9 +65,14 @@ def case_dossier(
     if active is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No case active for this cohort")
     cc, sv, case = active
-    evidence = released_evidence(db, cohort_id)
+    tracks = viewer_tracks(db, principal, cohort_id)
+    evidence = released_evidence(db, cohort_id, tracks=tracks)
     rel = releases(db, cohort_id)
-    injects = db.scalars(select(Inject).where(Inject.id.in_(list(rel) or [0])).order_by(Inject.sequence))
+    injects = [
+        i
+        for i in db.scalars(select(Inject).where(Inject.id.in_(list(rel) or [0])).order_by(Inject.sequence))
+        if track_visible(i.track, tracks)
+    ]
     return CaseOut(
         cohort_id=cohort_id,
         code=case.code,
@@ -103,7 +114,8 @@ def evidence_library(
     cohort_id: int, principal: Principal = Depends(get_principal), db: Session = Depends(get_db)
 ) -> list[EvidenceOut]:
     require_cohort_role(db, principal, cohort_id, ANY_MEMBER, "evidence.list")
-    return [_evidence_out(i, r, at) for i, r, at in released_evidence(db, cohort_id)]
+    tracks = viewer_tracks(db, principal, cohort_id)
+    return [_evidence_out(i, r, at) for i, r, at in released_evidence(db, cohort_id, tracks=tracks)]
 
 
 @router.get("/evidence/{code}", response_model=EvidenceOut)
@@ -111,7 +123,7 @@ def evidence_item(
     cohort_id: int, code: str, principal: Principal = Depends(get_principal), db: Session = Depends(get_db)
 ) -> EvidenceOut:
     require_cohort_role(db, principal, cohort_id, ANY_MEMBER, "evidence.view")
-    for i, r, at in released_evidence(db, cohort_id):
+    for i, r, at in released_evidence(db, cohort_id, tracks=viewer_tracks(db, principal, cohort_id)):
         if i.code == code:
             return _evidence_out(i, r, at)
     raise deny(
@@ -157,6 +169,7 @@ def _staff_preview(db: Session, cohort_id: int) -> StaffEvidencePreviewOut:
                 instructor_notes=it.instructor_notes,
                 released=released,
                 inject_approval_status=inj.approval_status if inj else None,
+                track=inj.track if inj else None,
             )
         )
     return StaffEvidencePreviewOut(
@@ -178,6 +191,7 @@ def _staff_preview(db: Session, cohort_id: int) -> StaffEvidencePreviewOut:
                 released_at=rel[i.id].released_at if i.id in rel else None,
                 released_by=users.get(rel[i.id].released_by_id) if i.id in rel else None,
                 evidence_codes=[e.code for e in items if e.inject_id == i.id],
+                track=i.track,
             )
             for i in injects.values()
         ],

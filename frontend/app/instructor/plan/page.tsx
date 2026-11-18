@@ -3,11 +3,11 @@
 import { Fragment, useEffect, useState } from "react";
 import { Shell } from "../../../components/Shell";
 import { api } from "../../../lib/api";
-import { AUDIENCE_LABEL, STATE_TONE, TYPE_LABEL } from "../../../lib/release";
+import { STATE_TONE, TYPE_LABEL, audienceText } from "../../../lib/release";
 
 type StaffCohort = { id: number; code: string; name: string };
 type PlanItem = {
-  item_id: number; code: string; sequence: number; item_type: string; title: string; audience: string; trigger: string;
+  item_id: number; code: string; sequence: number; item_type: string; title: string; audience: string; trigger: string; track?: string | null;
   state: string; due_at: string | null; released_at: string | null; released_by: string | null; withdrawn_at: string | null;
   reason: string | null; blocked_reason: string | null; scored: boolean; preview: string; instructor_notes: string;
 };
@@ -106,7 +106,7 @@ export default function ReleasePlan() {
                       <tr>
                         <td><strong>{i.code}</strong><div className="muted">{i.title}</div></td>
                         <td><span className={`status ${i.item_type === "answer_key" ? "danger" : "neutral"}`}>{TYPE_LABEL[i.item_type]}</span>{i.scored && <div className="muted">scored</div>}</td>
-                        <td>{AUDIENCE_LABEL[i.audience]}</td>
+                        <td>{audienceText(i.audience, i.track)}</td>
                         <td>{i.trigger}{i.due_at && <div className="muted">{fmt(i.due_at)}</div>}</td>
                         <td>
                           <span className={`status ${STATE_TONE[i.state]}`}>{i.state === "held" ? "on hold" : i.state}</span>
